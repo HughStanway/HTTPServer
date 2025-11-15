@@ -47,8 +47,24 @@ void Logger::log(const std::string& message, LogLevel level) {
 }
 
 void Logger::logErrno(const std::string& message, LogLevel level) {
-    std::string errorMsg = message + ": " + ::strerror(errno);
-    log(errorMsg, level);
+    std::lock_guard<std::mutex> lock(d_mtx);
+
+    char buffer[256];
+
+    #if defined(__APPLE__) || defined(__MUSL__)
+        // XSI-compliant strerror_r returns int
+        if (strerror_r(errno, buffer, sizeof(buffer)) != 0) {
+            strncpy(buffer, "Unknown error", sizeof(buffer));
+        }
+        std::string err(buffer);
+
+    #else
+        std::string err(strerror_r(errno, buffer, sizeof(buffer)));
+    #endif
+
+    std::cerr << "[" << levelToString(level) << "] "
+              << message << ": " << err << std::endl;
 }
+
 
 } // namespace HTTPServer
