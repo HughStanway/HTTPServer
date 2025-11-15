@@ -18,10 +18,21 @@ const Port& Server::port() const {
 }
 
 void Server::stop() {
-    std::cout << "Stopping server on port " << d_port.value() <<" ..." << std::endl;
+    if (!d_running) return;
+
+    d_running = false;
+    std::cout << "Stopping server on port " << d_port.value() << " ..." << std::endl;
+
     if (!(server_fd < 0)) {
         close(server_fd);
     }
+
+    // Join all client threads
+    for (auto& t : client_threads) {
+        if (t.joinable()) t.join();
+    }
+    client_threads.clear();
+    std::cout << "All client threads finished." << std::endl;
 }
 
 void Server::start() {
@@ -57,16 +68,21 @@ void Server::start() {
         return;
     }
 
+    d_running = true;
     std::cout << "Server running on port " << d_port.value() << " ..." << std::endl;
-    while (true) {
+    while (d_running) {
         socklen_t addrlen = sizeof(address);
         int client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
         if (client_fd < 0) {
+            if (!d_running) break; // socket closed, exit loop
             perror("accept");
             continue;
         }
-        std::thread(&Server::handle_client, this, client_fd).detach();
+
+        std::cout << "Accepted client [" << client_fd << "]" << std::endl;
+        client_threads.emplace_back(&Server::handle_client, this, client_fd);
     }
+    std::cout << "Server main loop exited." << std::endl;
 }
 
 void Server::handle_client(int client_fd) {
