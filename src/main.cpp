@@ -1,6 +1,13 @@
+#include "main.h"
+
 #include <iostream>
 
+#include "server.h"
+
 int main() {
-	std::cout << "Hello world!" << std::endl;
+	HTTPServer::Server server(HTTPServer::Port(8080));
+	server.start();
+	server.stop();
+
 	return 0;
 }

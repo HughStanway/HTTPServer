@@ -9,7 +9,8 @@ include_directories(third_party)
 
 add_executable(http_server
     src/main.cpp
-    #src/server.cpp
+    src/server.cpp
+    src/port.cpp
     #src/request.cpp
     #src/response.cpp
     #src/router.cpp
