@@ -1,6 +1,6 @@
-name: clang-format
+name: Clang Format
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
   format:
