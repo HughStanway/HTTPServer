@@ -53,7 +53,6 @@ void Logger::logErrno(const std::string& message, LogLevel level) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
     char buffer[256];
-
     #if defined(__APPLE__) || defined(__MUSL__)
         // XSI-compliant strerror_r returns int
         if (strerror_r(errno, buffer, sizeof(buffer)) != 0) {
@@ -65,8 +64,8 @@ void Logger::logErrno(const std::string& message, LogLevel level) {
         std::string err(strerror_r(errno, buffer, sizeof(buffer)));
     #endif
 
-    std::cerr << "[" << levelToString(level) << "] "
-              << message << ": " << err << std::endl;
+    std::string errorMsg = message + ": " + std::strerror(errno);
+    log(errorMsg, level);
 }
 
 
