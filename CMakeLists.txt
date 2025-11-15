@@ -24,3 +24,9 @@ target_link_libraries(http_server
 enable_testing()
 add_subdirectory(tests)
 
+option(ENABLE_SANITIZERS "Compile with ASan and UBSan" OFF)
+
+if (ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
