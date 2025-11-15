@@ -64,7 +64,7 @@ void Logger::logErrno(const std::string& message, LogLevel level) {
         std::string err(strerror_r(errno, buffer, sizeof(buffer)));
     #endif
 
-    std::string errorMsg = message + ": " + std::strerror(errno);
+    std::string errorMsg = message + ": " + err;
     log(errorMsg, level);
 }
 
