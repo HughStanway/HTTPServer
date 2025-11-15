@@ -1,2 +1,2 @@
 Checks: '-*,bugprone-*,performance-*,readability-*'
-WarningsAsErrors: true
+WarningsAsErrors: '*'
