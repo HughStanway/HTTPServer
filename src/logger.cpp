@@ -46,4 +46,9 @@ void Logger::log(const std::string& message, LogLevel level) {
               << message << std::endl;
 }
 
+void Logger::logErrno(const std::string& message, LogLevel level) {
+    std::string errorMsg = message + ": " + std::strerror(errno);
+    log(errorMsg, level);
+}
+
 } // namespace HTTPServer

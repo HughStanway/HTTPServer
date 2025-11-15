@@ -38,11 +38,10 @@ void Server::stop() {
 
 void Server::start() {
     LOG_INFO("Starting server on port " + d_port.toString() + " ...");
-
     // 1. Create socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
-        perror("socket");
+        LOG_ERROR_ERRNO("socket failed");
         return;
     }
 
@@ -57,14 +56,14 @@ void Server::start() {
     address.sin_port        = d_port.toNetwork();
 
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        perror("bind");
+        LOG_ERROR_ERRNO("bind failed");
         close(server_fd);
         return;
     }
 
     // 3. Start listening
     if (listen(server_fd, 10) < 0) {
-        perror("listen");
+        LOG_ERROR_ERRNO("listen failed");
         close(server_fd);
         return;
     }
@@ -76,7 +75,7 @@ void Server::start() {
         int client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
         if (client_fd < 0) {
             if (!d_running) break; // socket closed, exit loop
-            perror("accept");
+            LOG_ERROR_ERRNO("accept failed");
             continue;
         }
 
@@ -92,9 +91,9 @@ void Server::handle_client(int client_fd) {
     char buffer[4096] = {0};
     int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes < 0) {
-        perror("recv");
+        LOG_ERROR_ERRNO("recv failed");
     } else {
-        LOG_INFO("Received (" + std::to_string(bytes) + " bytes):");
+        LOG_INFO("Received (" + std::to_string(bytes) + " bytes) from client [" + std::to_string(client_fd) + "]:");
         std::cout << buffer;
     }
 
