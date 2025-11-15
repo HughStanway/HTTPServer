@@ -47,7 +47,7 @@ void Logger::log(const std::string& message, LogLevel level) {
 }
 
 void Logger::logErrno(const std::string& message, LogLevel level) {
-    std::string errorMsg = message + ": " + strerror(errno);
+    std::string errorMsg = message + ": " + ::strerror(errno);
     log(errorMsg, level);
 }
 
