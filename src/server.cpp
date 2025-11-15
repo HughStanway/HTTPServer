@@ -9,6 +9,8 @@
 
 #include "port.h"
 #include "logger.h"
+#include "httpobject.h"
+#include "httpparser.h"
 
 namespace HTTPServer {
 
@@ -93,8 +95,16 @@ void Server::handle_client(int client_fd) {
     if (bytes < 0) {
         LOG_ERROR_ERRNO("recv failed");
     } else {
-        LOG_INFO("Received (" + std::to_string(bytes) + " bytes) from client [" + std::to_string(client_fd) + "]:");
-        std::cout << buffer;
+        LOG_INFO("Received (" + std::to_string(bytes) + " bytes) from client [" + std::to_string(client_fd) + "]");
+
+        HttpRequest request;
+        ParseError err = HttpParser::parse(buffer, request);
+
+        if (err != ParseError::NONE) {
+            LOG_ERROR("Bad HTTP request");
+        } else {
+            LOG_INFO("Parsed request: " + request.method + " " + request.path);
+        }
     }
 
     const char* msg = "Hello from your multithreaded TCP server!\n";
