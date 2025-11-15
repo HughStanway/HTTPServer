@@ -4,11 +4,12 @@
 #include <csignal>
 
 #include "server.h"
+#include "logger.h"
 
 HTTPServer::Server* g_server = nullptr;
 
 void signal_handler(int signum) {
-    std::cout << "\nSIGINT received, shutting down..." << std::endl;
+	LOG_INFO("SIGINT received, shutting down...");
     if (g_server) g_server->stop();
 }
 
@@ -20,6 +21,6 @@ int main() {
 
     server.start();
 
-    std::cout << "Server exited cleanly." << std::endl;
+	LOG_INFO("Server exited cleanly.");
     return 0;
 }

@@ -1,6 +1,7 @@
 #include "port.h"
 
 #include <cstdint>
+#include <string>
 #include <arpa/inet.h>
 
 namespace HTTPServer {
@@ -13,6 +14,10 @@ Port::operator int() const {
 
 int Port::value() const {
     return d_value;
+}
+
+std::string Port::toString() const {
+    return std::to_string(d_value);
 }
 
 uint16_t Port::toNetwork() const {

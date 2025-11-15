@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "port.h"
+#include "logger.h"
 
 namespace HTTPServer {
 
@@ -21,7 +22,7 @@ void Server::stop() {
     if (!d_running) return;
 
     d_running = false;
-    std::cout << "Stopping server on port " << d_port.value() << " ..." << std::endl;
+    LOG_INFO("Stopping server on port " + d_port.toString() + " ...");
 
     if (!(server_fd < 0)) {
         close(server_fd);
@@ -32,11 +33,11 @@ void Server::stop() {
         if (t.joinable()) t.join();
     }
     client_threads.clear();
-    std::cout << "All client threads finished." << std::endl;
+    LOG_INFO("All client threads finished.");
 }
 
 void Server::start() {
-    std::cout << "Starting server on port " << d_port.value() << " ..." << std::endl;
+    LOG_INFO("Starting server on port " + d_port.toString() + " ...");
 
     // 1. Create socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -69,7 +70,7 @@ void Server::start() {
     }
 
     d_running = true;
-    std::cout << "Server running on port " << d_port.value() << " ..." << std::endl;
+    LOG_INFO("Server running on port " + d_port.toString() + " ...");
     while (d_running) {
         socklen_t addrlen = sizeof(address);
         int client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
@@ -79,29 +80,29 @@ void Server::start() {
             continue;
         }
 
-        std::cout << "Accepted client [" << client_fd << "]" << std::endl;
+        LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
         client_threads.emplace_back(&Server::handle_client, this, client_fd);
     }
-    std::cout << "Server main loop exited." << std::endl;
+    LOG_INFO("Server main loop exited.");
 }
 
 void Server::handle_client(int client_fd) {
-    std::cout << "Client [" << client_fd << "] connected" << std::endl;
+    LOG_INFO("Client [" + std::to_string(client_fd) + "] connected");
 
     char buffer[4096] = {0};
     int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes < 0) {
         perror("recv");
     } else {
-        std::cout << "Received (" << bytes << " bytes):\n";
-        std::cout << buffer << "\n";
+        LOG_INFO("Received (" + std::to_string(bytes) + " bytes):");
+        std::cout << buffer;
     }
 
     const char* msg = "Hello from your multithreaded TCP server!\n";
     send(client_fd, msg, strlen(msg), 0);
 
     close(client_fd);
-    std::cout << "Client [" << client_fd << "] disconnected" << std::endl;
+    LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
 }
 
 } // namespace HTTPServer

@@ -1,7 +1,8 @@
 #ifndef PORT_H
 #define PORT_H
 
-#include <cstdint> 
+#include <cstdint>
+#include <string>
 
 namespace HTTPServer {
 
@@ -11,6 +12,7 @@ class Port {
         explicit operator int() const;
 
         int value() const;
+        std::string toString() const;
         uint16_t toNetwork() const;
 
     private:
