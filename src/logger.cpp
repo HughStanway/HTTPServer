@@ -1,5 +1,8 @@
 #include "logger.h"
 
+#include <string.h>
+#include <errno.h> 
+
 namespace HTTPServer {
 
 Logger& Logger::instance() {
