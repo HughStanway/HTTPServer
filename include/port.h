@@ -7,7 +7,7 @@
 namespace HTTPServer {
 
 class Port {
-   public:
+  public:
     explicit Port(int value);
     explicit operator int() const;
 
@@ -15,10 +15,10 @@ class Port {
     std::string toString() const;
     uint16_t toNetwork() const;
 
-   private:
+  private:
     int d_value;
 };
 
-}  // namespace HTTPServer
+} // namespace HTTPServer
 
 #endif

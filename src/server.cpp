@@ -17,10 +17,11 @@ namespace HTTPServer {
 
 Server::Server(Port port) : d_port(port), server_fd(-1) {}
 
-const Port& Server::port() const { return d_port; }
+const Port &Server::port() const { return d_port; }
 
 void Server::stop() {
-    if (!d_running) return;
+    if (!d_running)
+        return;
 
     d_running = false;
     LOG_INFO("Stopping server on port " + d_port.toString() + " ...");
@@ -30,8 +31,9 @@ void Server::stop() {
     }
 
     // Join all client threads
-    for (auto& t : client_threads) {
-        if (t.joinable()) t.join();
+    for (auto &t : client_threads) {
+        if (t.joinable())
+            t.join();
     }
     client_threads.clear();
     LOG_INFO("All client threads finished.");
@@ -56,7 +58,7 @@ void Server::start() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = d_port.toNetwork();
 
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         LOG_ERROR_ERRNO("bind failed");
         close(server_fd);
         return;
@@ -73,9 +75,10 @@ void Server::start() {
     LOG_INFO("Server running on port " + d_port.toString() + " ...");
     while (d_running) {
         socklen_t addrlen = sizeof(address);
-        int client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
+        int client_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
         if (client_fd < 0) {
-            if (!d_running) break;  // socket closed, exit loop
+            if (!d_running)
+                break; // socket closed, exit loop
             LOG_ERROR_ERRNO("accept failed");
             continue;
         }
@@ -106,11 +109,11 @@ void Server::handle_client(int client_fd) {
         }
     }
 
-    const char* msg = "Hello from your multithreaded TCP server!\n";
+    const char *msg = "Hello from your multithreaded TCP server!\n";
     send(client_fd, msg, strlen(msg), 0);
 
     close(client_fd);
     LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
 }
 
-}  // namespace HTTPServer
+} // namespace HTTPServer

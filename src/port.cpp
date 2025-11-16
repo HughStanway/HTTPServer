@@ -17,4 +17,4 @@ std::string Port::toString() const { return std::to_string(d_value); }
 
 uint16_t Port::toNetwork() const { return htons(d_value); }
 
-}  // namespace HTTPServer
+} // namespace HTTPServer

@@ -12,11 +12,10 @@ TEST(HttpParserTests, EmptyRequest) {
 }
 
 TEST(HttpParserTests, ValidGetRequest) {
-    const std::string raw =
-        "GET /index.html HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "User-Agent: TestClient\r\n"
-        "\r\n";
+    const std::string raw = "GET /index.html HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "User-Agent: TestClient\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -31,9 +30,8 @@ TEST(HttpParserTests, ValidGetRequest) {
 }
 
 TEST(HttpParserTests, InvalidRequestLine) {
-    const std::string raw =
-        "BADREQUESTLINE\r\n"
-        "\r\n";
+    const std::string raw = "BADREQUESTLINE\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -41,10 +39,9 @@ TEST(HttpParserTests, InvalidRequestLine) {
 }
 
 TEST(HttpParserTests, InvalidMethod) {
-    const std::string raw =
-        "get / HTTP/1.1\r\n"
-        "Host: x\r\n"
-        "\r\n";
+    const std::string raw = "get / HTTP/1.1\r\n"
+                            "Host: x\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -52,10 +49,9 @@ TEST(HttpParserTests, InvalidMethod) {
 }
 
 TEST(HttpParserTests, InvalidVersion) {
-    const std::string raw =
-        "GET / WRONGVERSION\r\n"
-        "Host: x\r\n"
-        "\r\n";
+    const std::string raw = "GET / WRONGVERSION\r\n"
+                            "Host: x\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -63,10 +59,9 @@ TEST(HttpParserTests, InvalidVersion) {
 }
 
 TEST(HttpParserTests, InvalidHeaderFormat) {
-    const std::string raw =
-        "GET / HTTP/1.1\r\n"
-        "HeaderWithoutColon\r\n"
-        "\r\n";
+    const std::string raw = "GET / HTTP/1.1\r\n"
+                            "HeaderWithoutColon\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -74,10 +69,9 @@ TEST(HttpParserTests, InvalidHeaderFormat) {
 }
 
 TEST(HttpParserTests, InvalidHeaderName) {
-    const std::string raw =
-        "GET / HTTP/1.1\r\n"
-        "Bad Header: value\r\n"
-        "\r\n";
+    const std::string raw = "GET / HTTP/1.1\r\n"
+                            "Bad Header: value\r\n"
+                            "\r\n";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
@@ -85,17 +79,16 @@ TEST(HttpParserTests, InvalidHeaderName) {
 }
 
 TEST(HttpParserTests, BodyParsing) {
-    const std::string raw =
-        "POST /submit HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "Content-Length: 11\r\n"
-        "\r\n"
-        "hello world";
+    const std::string raw = "POST /submit HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "Content-Length: 11\r\n"
+                            "\r\n"
+                            "hello world";
 
     HttpRequest req;
     ParseError err = HttpParser::parse(raw, req);
 
     EXPECT_EQ(err, ParseError::NONE);
     EXPECT_EQ(req.method, "POST");
-    EXPECT_EQ(req.body, "hello world\n");  // parser adds newline
+    EXPECT_EQ(req.body, "hello world\n"); // parser adds newline
 }

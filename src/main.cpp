@@ -6,11 +6,12 @@
 #include "logger.h"
 #include "server.h"
 
-HTTPServer::Server* g_server = nullptr;
+HTTPServer::Server *g_server = nullptr;
 
 void signal_handler(int signum) {
     LOG_INFO("SIGINT received, shutting down...");
-    if (g_server) g_server->stop();
+    if (g_server)
+        g_server->stop();
 }
 
 int main() {

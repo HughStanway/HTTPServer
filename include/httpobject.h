@@ -14,6 +14,6 @@ struct HttpRequest {
     std::string body;
 };
 
-}  // namespace HTTPServer
+} // namespace HTTPServer
 
 #endif

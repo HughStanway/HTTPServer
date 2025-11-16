@@ -16,16 +16,16 @@ enum class ParseError {
 };
 
 class HttpParser {
-   public:
-    static ParseError parse(const std::string&, HttpRequest&);
+  public:
+    static ParseError parse(const std::string &, HttpRequest &);
 
-   private:
-    static void trim(std::string&);
-    static bool isValidMethod(const std::string&);
-    static bool isValidVersion(const std::string&);
-    static bool isValidHeaderName(const std::string&);
+  private:
+    static void trim(std::string &);
+    static bool isValidMethod(const std::string &);
+    static bool isValidVersion(const std::string &);
+    static bool isValidHeaderName(const std::string &);
 };
 
-}  // namespace HTTPServer
+} // namespace HTTPServer
 
 #endif

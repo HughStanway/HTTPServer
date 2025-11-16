@@ -5,7 +5,7 @@
 
 namespace HTTPServer {
 
-Logger& Logger::instance() {
+Logger &Logger::instance() {
     static Logger logger;
     return logger;
 }
@@ -17,14 +17,14 @@ void Logger::setLevel(LogLevel level) {
 
 std::string Logger::levelToString(LogLevel level) {
     switch (level) {
-        case LogLevel::INFO:
-            return "INFO";
-        case LogLevel::WARN:
-            return "WARN";
-        case LogLevel::ERROR:
-            return "ERROR";
-        default:
-            return "UNKNOWN";
+    case LogLevel::INFO:
+        return "INFO";
+    case LogLevel::WARN:
+        return "WARN";
+    case LogLevel::ERROR:
+        return "ERROR";
+    default:
+        return "UNKNOWN";
     }
 }
 
@@ -36,7 +36,7 @@ std::string Logger::currentTime() {
     return std::string(buf);
 }
 
-void Logger::log(const std::string& message, LogLevel level) {
+void Logger::log(const std::string &message, LogLevel level) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
     // Only log messages at or above current level
@@ -48,7 +48,7 @@ void Logger::log(const std::string& message, LogLevel level) {
               << "[" << levelToString(level) << "] " << message << std::endl;
 }
 
-void Logger::logErrno(const std::string& message, LogLevel level) {
+void Logger::logErrno(const std::string &message, LogLevel level) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
     char buffer[256];
@@ -67,4 +67,4 @@ void Logger::logErrno(const std::string& message, LogLevel level) {
     log(errorMsg, level);
 }
 
-}  // namespace HTTPServer
+} // namespace HTTPServer
