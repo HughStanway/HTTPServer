@@ -1,9 +1,9 @@
-#include "router.h"
+#include "httpserver/router.h"
 
 #include <string>
 
-#include "http_response.h"
-#include "http_response_builder.h"
+#include "httpserver/http_response.h"
+#include "httpserver/http_response_builder.h"
 
 namespace HTTPServer {
 
