@@ -15,6 +15,7 @@ add_library(httpserver_lib
     src/utils.cpp
     src/http_response.cpp
     src/http_response_builder.cpp
+    src/router.cpp
 )
 
 add_executable(http_server
