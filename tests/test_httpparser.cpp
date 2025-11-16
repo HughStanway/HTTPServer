@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "httpparser.h"
 #include "httpobject.h"
+#include "httpparser.h"
 
 using namespace HTTPServer;
 
@@ -97,5 +97,5 @@ TEST(HttpParserTests, BodyParsing) {
 
     EXPECT_EQ(err, ParseError::NONE);
     EXPECT_EQ(req.method, "POST");
-    EXPECT_EQ(req.body, "hello world\n"); // parser adds newline
+    EXPECT_EQ(req.body, "hello world\n");  // parser adds newline
 }

@@ -1,7 +1,7 @@
 #include "logger.h"
 
+#include <errno.h>
 #include <string.h>
-#include <errno.h> 
 
 namespace HTTPServer {
 
@@ -45,28 +45,26 @@ void Logger::log(const std::string& message, LogLevel level) {
     }
 
     std::cout << "[" << currentTime() << "] "
-              << "[" << levelToString(level) << "] "
-              << message << std::endl;
+              << "[" << levelToString(level) << "] " << message << std::endl;
 }
 
 void Logger::logErrno(const std::string& message, LogLevel level) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
     char buffer[256];
-    #if defined(__APPLE__) || defined(__MUSL__)
-        // XSI-compliant strerror_r returns int
-        if (strerror_r(errno, buffer, sizeof(buffer)) != 0) {
-            strncpy(buffer, "Unknown error", sizeof(buffer));
-        }
-        std::string err(buffer);
+#if defined(__APPLE__) || defined(__MUSL__)
+    // XSI-compliant strerror_r returns int
+    if (strerror_r(errno, buffer, sizeof(buffer)) != 0) {
+        strncpy(buffer, "Unknown error", sizeof(buffer));
+    }
+    std::string err(buffer);
 
-    #else
-        std::string err(strerror_r(errno, buffer, sizeof(buffer)));
-    #endif
+#else
+    std::string err(strerror_r(errno, buffer, sizeof(buffer)));
+#endif
 
     std::string errorMsg = message + ": " + err;
     log(errorMsg, level);
 }
 
-
-} // namespace HTTPServer
+}  // namespace HTTPServer

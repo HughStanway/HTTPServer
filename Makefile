@@ -1,5 +1,7 @@
 BUILD_DIR := build
+SRC_DIRS := src include tests
 EXECUTABLE := http_server
+SOURCES := $(shell find $(SRC_DIRS) -name '*.cpp' -o -name '*.hpp' -o -name '*.h')
 
 .PHONY: all build run clean rebuild
 
@@ -20,3 +22,8 @@ clean:
 
 rebuild: clean build
 
+format:
+	clang-format -i $(SOURCES)
+
+check-format:
+	clang-format --dry-run --Werror $(SOURCES)

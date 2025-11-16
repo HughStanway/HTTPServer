@@ -1,15 +1,15 @@
 #include "main.h"
 
-#include <iostream>
 #include <csignal>
+#include <iostream>
 
-#include "server.h"
 #include "logger.h"
+#include "server.h"
 
 HTTPServer::Server* g_server = nullptr;
 
 void signal_handler(int signum) {
-	LOG_INFO("SIGINT received, shutting down...");
+    LOG_INFO("SIGINT received, shutting down...");
     if (g_server) g_server->stop();
 }
 
@@ -21,6 +21,6 @@ int main() {
 
     server.start();
 
-	LOG_INFO("Server exited cleanly.");
+    LOG_INFO("Server exited cleanly.");
     return 0;
 }

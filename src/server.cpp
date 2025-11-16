@@ -1,24 +1,23 @@
 #include "server.h"
 
-#include <iostream>
-#include <cstring>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstring>
+#include <iostream>
 #include <thread>
 
-#include "port.h"
-#include "logger.h"
 #include "httpobject.h"
 #include "httpparser.h"
+#include "logger.h"
+#include "port.h"
 
 namespace HTTPServer {
 
 Server::Server(Port port) : d_port(port), server_fd(-1) {}
 
-const Port& Server::port() const {
-    return d_port;
-}
+const Port& Server::port() const { return d_port; }
 
 void Server::stop() {
     if (!d_running) return;
@@ -53,9 +52,9 @@ void Server::start() {
 
     // 2. Bind to port
     sockaddr_in address{};
-    address.sin_family      = AF_INET;
+    address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port        = d_port.toNetwork();
+    address.sin_port = d_port.toNetwork();
 
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         LOG_ERROR_ERRNO("bind failed");
@@ -76,7 +75,7 @@ void Server::start() {
         socklen_t addrlen = sizeof(address);
         int client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
         if (client_fd < 0) {
-            if (!d_running) break; // socket closed, exit loop
+            if (!d_running) break;  // socket closed, exit loop
             LOG_ERROR_ERRNO("accept failed");
             continue;
         }
@@ -114,4 +113,4 @@ void Server::handle_client(int client_fd) {
     LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
 }
 
-} // namespace HTTPServer
+}  // namespace HTTPServer

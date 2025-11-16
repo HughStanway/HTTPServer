@@ -6,8 +6,7 @@
 
 namespace HTTPServer {
 
-struct HttpRequest
-{
+struct HttpRequest {
     std::string method;
     std::string path;
     std::string version;
@@ -15,6 +14,6 @@ struct HttpRequest
     std::string body;
 };
 
-} // namespace HTTPServer
+}  // namespace HTTPServer
 
 #endif
