@@ -1,10 +1,17 @@
-#ifndef HTTPOBJECT_H
-#define HTTPOBJECT_H
+#ifndef HTTP_OBJECT_H
+#define HTTP_OBJECT_H
 
 #include <string>
 #include <unordered_map>
 
 namespace HTTPServer {
+
+enum class StatusCode {
+    OK = 200,
+    BadRequest = 400,
+    NotFound = 404,
+    InternalServerError = 500,
+};
 
 struct HttpRequest {
     std::string method;

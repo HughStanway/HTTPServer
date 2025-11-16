@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "httpobject.h"
-#include "httpparser.h"
+#include "http_object.h"
+#include "http_parser.h"
 
 using namespace HTTPServer;
 

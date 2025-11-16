@@ -11,7 +11,10 @@ add_library(httpserver_lib
     src/server.cpp
     src/port.cpp
     src/logger.cpp
-    src/httpparser.cpp
+    src/http_parser.cpp
+    src/utils.cpp
+    src/http_response.cpp
+    src/http_response_builder.cpp
 )
 
 add_executable(http_server

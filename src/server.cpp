@@ -8,10 +8,13 @@
 #include <iostream>
 #include <thread>
 
-#include "httpobject.h"
-#include "httpparser.h"
+#include "http_object.h"
+#include "http_parser.h"
+#include "http_response.h"
+#include "http_response_builder.h"
 #include "logger.h"
 #include "port.h"
+#include "utils.h"
 
 namespace HTTPServer {
 
@@ -83,6 +86,11 @@ void Server::start() {
             continue;
         }
 
+        struct timeval timeout;
+        timeout.tv_sec = 5;   // idle timeout seconds
+        timeout.tv_usec = 0;
+        setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+
         LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
         client_threads.emplace_back(&Server::handle_client, this, client_fd);
     }
@@ -92,25 +100,50 @@ void Server::start() {
 void Server::handle_client(int client_fd) {
     LOG_INFO("Client [" + std::to_string(client_fd) + "] connected");
 
-    char buffer[4096] = {0};
-    int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-    if (bytes < 0) {
-        LOG_ERROR_ERRNO("recv failed");
-    } else {
-        LOG_INFO("Received (" + std::to_string(bytes) + " bytes) from client [" + std::to_string(client_fd) + "]");
+    const int MAX_KEEPALIVE_REQUESTS = 100;
+    bool keepAlive = true;
+    int requests_handled = 0;
+    while (keepAlive && requests_handled < MAX_KEEPALIVE_REQUESTS) {
+        char buffer[4096];
+        int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes == 0) {
+            LOG_INFO("Client closed connection");
+            break;
+        }
+
+        if (bytes < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                LOG_INFO("Idle timeout reached, closing");
+            } else {
+                LOG_INFO("recv error");
+            }
+            break;
+        }
+
+        std::string raw(buffer, bytes);
 
         HttpRequest request;
-        ParseError err = HttpParser::parse(buffer, request);
+        ParseError err = HttpParser::parse(raw, request);
 
+        HttpResponse response;
         if (err != ParseError::NONE) {
             LOG_ERROR("Bad HTTP request");
+            response = Responses::badRequest();
+            keepAlive = false;
         } else {
             LOG_INFO("Parsed request: " + request.method + " " + request.path);
+            response = Responses::ok(request, "Hello World!");
+            keepAlive = requestWantsKeepAlive(request);
         }
-    }
 
-    const char *msg = "Hello from your multithreaded TCP server!\n";
-    send(client_fd, msg, strlen(msg), 0);
+        std::string payload = response.serialize();
+        send(client_fd, payload.c_str(), payload.size(), 0);
+
+        requests_handled++;
+
+        if (!keepAlive)
+            break;
+    }
 
     close(client_fd);
     LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");

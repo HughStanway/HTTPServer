@@ -1,7 +1,7 @@
-#ifndef HTTPPARSER_H
-#define HTTPPARSER_H
+#ifndef HTTP_PARSER_H
+#define HTTP_PARSER_H
 
-#include "httpobject.h"
+#include "http_object.h"
 
 namespace HTTPServer {
 
