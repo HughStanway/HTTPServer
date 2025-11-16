@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <cstring>
+#include <csignal>
 #include <iostream>
 #include <thread>
 
@@ -16,6 +17,19 @@
 #include "port.h"
 #include "utils.h"
 #include "router.h"
+
+namespace {
+
+HTTPServer::Server* g_activeServer = nullptr;
+
+void sig_handler(int) {
+    LOG_INFO("SIGINT or SIGTERM received, shutting down...");
+    if (g_activeServer) {
+        g_activeServer->stop();
+    }
+}
+
+} // namespace global
 
 namespace HTTPServer {
 
@@ -41,6 +55,12 @@ void Server::stop() {
     }
     client_threads.clear();
     LOG_INFO("All client threads finished.");
+}
+
+void Server::installSignalHandlers() {
+    g_activeServer = this;
+    std::signal(SIGINT, sig_handler);
+    std::signal(SIGTERM, sig_handler);
 }
 
 void Server::start() {

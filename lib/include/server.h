@@ -17,6 +17,7 @@ class Server {
 
     const Port &port() const;
     void start();
+    void installSignalHandlers();
     void stop();
 
   private:

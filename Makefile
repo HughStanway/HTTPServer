@@ -1,5 +1,6 @@
 BUILD_DIR := build
 SRC_DIRS := src include tests
+EXECUTABLE_DIR := src
 EXECUTABLE := http_server
 SOURCES := $(shell find $(SRC_DIRS) -name '*.cpp' -o -name '*.hpp' -o -name '*.h')
 
@@ -14,7 +15,7 @@ build:
 
 run: build
 	@echo "==> Running $(EXECUTABLE)..."
-	@./$(BUILD_DIR)/$(EXECUTABLE)
+	@./$(BUILD_DIR)/$(EXECUTABLE_DIR)/$(EXECUTABLE)
 
 clean:
 	@echo "==> Cleaning build directory..."
