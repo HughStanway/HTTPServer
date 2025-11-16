@@ -25,5 +25,5 @@ rebuild: clean build
 format:
 	clang-format -i $(SOURCES)
 
-check-format:
-	clang-format --dry-run --Werror $(SOURCES)
+tidy:
+	clang-tidy -p build $(shell find src include -name '*.cpp')
