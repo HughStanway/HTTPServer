@@ -8,15 +8,23 @@ int main() {
     server.installSignalHandlers();
 
     Router::instance().addRoute("GET", "/", [](const HttpRequest& req) {
-        return Responses::ok(req, "Welcome to the home page!");
+        return Responses::file(req, "public/index.html");
     });
 
     Router::instance().addRoute("GET", "/about", [](const HttpRequest& req) {
-        return Responses::ok(req, "About page");
+        return Responses::file(req, "public/about.html");
     });
 
-    Router::instance().addRoute("POST", "/submit", [](const HttpRequest& req) {
-        return Responses::ok(req, "Form submitted!");
+    Router::instance().addRoute("GET", "/contact", [](const HttpRequest& req) {
+        return Responses::file(req, "public/contact.html");
+    });
+
+    Router::instance().addRoute("GET", "/css/style.css", [](const HttpRequest& req) {
+        return Responses::file(req, "public/css/style.css");
+    });
+
+    Router::instance().addRoute("GET", "/js/main.js", [](const HttpRequest& req) {
+        return Responses::file(req, "public/js/main.js");
     });
 
     server.start();

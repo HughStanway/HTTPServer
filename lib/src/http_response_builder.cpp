@@ -1,8 +1,13 @@
 #include "httpserver/http_response_builder.h"
 
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include "httpserver/http_response.h"
+#include "httpserver/utils.h"
+#include "httpserver/logger.h"
 
 namespace HTTPServer {
 
@@ -31,6 +36,24 @@ HttpResponse badRequest() {
               .addHeader("Content-Type", "text/plain")
               .addHeader("Connection", "close")
               .setBody("400 Bad Request");
+}
+
+HttpResponse file(const HttpRequest& req, const std::string& filepath) {
+    std::ifstream file(filepath, std::ios::binary);
+
+    if (!file) {
+        return Responses::notFound(req);
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+
+    HttpResponse res;
+    return res.setStatus(StatusCode::OK)
+              .addHeader("Content-Length", std::to_string(content.size()))
+              .addHeader("Content-Type", Mime::fromExtension(filepath))
+              .setBody(content);
 }
 
 } // namespace Responses

@@ -153,7 +153,6 @@ void Server::handle_client(int client_fd) {
             keepAlive = false;
         } else {
             LOG_INFO("Parsed request from client [" + std::to_string(client_fd) + "]: " + request.method + " " + request.path);
-            //response = Responses::ok(request, "Hello World!");
             response = Router::instance().route(request);
             keepAlive = requestWantsKeepAlive(request);
         }
