@@ -9,8 +9,8 @@
 namespace HTTPServer {
 
 Router& Router::instance() {
-    static Router instance;
-    return instance;
+    static Router router;
+    return router;
 }
 
 void Router::addRoute(const std::string& method, const std::string& path, RequestHandler handler) {

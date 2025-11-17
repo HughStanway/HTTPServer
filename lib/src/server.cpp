@@ -128,13 +128,13 @@ void Server::handle_client(int client_fd) {
         char buffer[4096];
         int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
         if (bytes == 0) {
-            LOG_INFO("Client closed connection");
+            LOG_INFO("Client [" + std::to_string(client_fd) + "] closed connection");
             break;
         }
 
         if (bytes < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                LOG_INFO("Idle timeout reached, closing");
+                LOG_INFO("Client [" + std::to_string(client_fd) + "] idle timeout reached, closing");
             } else {
                 LOG_INFO("recv error");
             }
