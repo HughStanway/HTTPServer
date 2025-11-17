@@ -148,7 +148,7 @@ void Server::handle_client(int client_fd) {
 
         HttpResponse response;
         if (err != ParseError::NONE) {
-            LOG_ERROR("Bad HTTP request");
+            LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) + "]: " + request.method + " " + request.path);
             response = Responses::badRequest();
             keepAlive = false;
         } else {

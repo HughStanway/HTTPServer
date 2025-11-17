@@ -20,6 +20,7 @@ class Router {
         Router& operator=(Router&&) = delete;
 
         void addRoute(const std::string&, const std::string&, RequestHandler);
+        void addStaticDirectoryRoute(const std::string&, const std::string&);
         HttpResponse route(const HttpRequest&) const;
 
     private:

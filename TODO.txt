@@ -1,0 +1,5 @@
+0. serve static directores based on a catch-all **DONE**
+1. Added Doxygen comments for public API
+2. Compile as a proper library not just a local library
+3. Support for returning JSON response
+4. Python wrapper similar to FastAPI
