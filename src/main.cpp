@@ -20,13 +20,6 @@ int main() {
     });
 
     Router::instance().addStaticDirectoryRoute("/", "public/");
-    // Router::instance().addRoute("GET", "/css/style.css", [](const HttpRequest& req) {
-    //     return Responses::file(req, "public/css/style.css");
-    // });
-
-    // Router::instance().addRoute("GET", "/js/main.js", [](const HttpRequest& req) {
-    //     return Responses::file(req, "public/js/main.js");
-    // });
 
     server.start();
     std::cout << "Server exited cleanly" << std::endl;

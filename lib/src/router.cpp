@@ -18,7 +18,7 @@ void Router::addRoute(const std::string& method, const std::string& path, Reques
 }
 
 void Router::addStaticDirectoryRoute(const std::string& urlBase, const std::string& directory) {
-    addRoute("GET", urlBase + "/*", [directory, urlBase](const HttpRequest& req) {
+    addRoute("GET", urlBase + "*", [directory, urlBase](const HttpRequest& req) {
         std::string relative = req.path.substr(urlBase.size());
         if (relative.empty() || relative == "/") relative = "/index.html";
 
@@ -50,9 +50,8 @@ HttpResponse Router::route(const HttpRequest& request) const {
     size_t bestPrefixLen = 0;
 
     for (const auto& [pattern, handler] : pathMap) {
-        if (pattern.size() > 2 && pattern.ends_with("/*")) {
-            std::string prefix = pattern.substr(0, pattern.size() - 2);
-
+        if (pattern.size() > 1 && pattern.ends_with("*")) {
+            std::string prefix = pattern.substr(0, pattern.size() - 1);
             if (request.path.starts_with(prefix)) {
                 if (prefix.size() > bestPrefixLen) {
                     bestPrefixLen = prefix.size();
