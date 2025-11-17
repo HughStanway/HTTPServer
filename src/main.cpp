@@ -19,7 +19,7 @@ int main() {
         return Responses::file(req, "public/contact.html");
     });
 
-    Router::instance().addStaticDirectoryRoute("/", "public/");
+    Router::instance().addStaticDirectoryRoute("/static", "public/");
 
     server.start();
     std::cout << "Server exited cleanly" << std::endl;

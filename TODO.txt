@@ -1,5 +1,6 @@
-0. serve static directores based on a catch-all **DONE**
-1. Added Doxygen comments for public API
-2. Compile as a proper library not just a local library
-3. Support for returning JSON response
-4. Python wrapper similar to FastAPI
+-- serve static directores based on a catch-all **DONE**
+-- Add tests for router
+-- Added Doxygen comments for public API
+-- Compile as a proper library not just a local library
+-- Support for returning JSON response
+-- Python wrapper similar to FastAPI
