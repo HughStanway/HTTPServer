@@ -1,5 +1,5 @@
 -- serve static directores based on a catch-all **DONE**
--- POST request handling (?id=10 paramerts in url)
+-- POST request handling (?id=10 paramerts in url) **DONE**
 -- json response - need a json Reponse:: type similar to file::
 -- dynamic routes
 -- Add tests for router
