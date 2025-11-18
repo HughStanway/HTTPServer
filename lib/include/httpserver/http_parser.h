@@ -1,6 +1,8 @@
 #ifndef HTTP_PARSER_H
 #define HTTP_PARSER_H
 
+#include <string>
+
 #include "http_object.h"
 
 namespace HTTPServer {
@@ -24,6 +26,8 @@ class HttpParser {
     static bool isValidMethod(const std::string &);
     static bool isValidVersion(const std::string &);
     static bool isValidHeaderName(const std::string &);
+    static std::string urlDecode(const std::string &);
+    static void parseQueryParams(const std::string&, std::unordered_map<std::string, std::string>&);
 };
 
 } // namespace HTTPServer

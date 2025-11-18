@@ -1,4 +1,7 @@
 -- serve static directores based on a catch-all **DONE**
+-- POST request handling (?id=10 paramerts in url)
+-- json response - need a json Reponse:: type similar to file::
+-- dynamic routes
 -- Add tests for router
 -- Added Doxygen comments for public API
 -- Compile as a proper library not just a local library

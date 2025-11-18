@@ -7,19 +7,19 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(googletest)
 
-add_executable(test_httpparser
+add_executable(test_httpserver
     test_httpparser.cpp
 )
 
-target_link_libraries(test_httpparser
+target_link_libraries(test_httpserver
     gtest
     gtest_main
     httpserver_lib
 )
 
-target_include_directories(test_httpparser
+target_include_directories(test_httpserver
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
 )
 
-add_test(NAME HttpParserTests COMMAND test_httpparser)
+add_test(NAME HttpParserTests COMMAND test_httpserver)

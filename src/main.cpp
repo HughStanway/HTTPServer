@@ -19,6 +19,16 @@ int main() {
         return Responses::file(req, "public/contact.html");
     });
 
+    Router::instance().addRoute("GET", "/add", [](const HttpRequest& req) {
+        auto itr = req.params.find("email");
+        if (itr != req.params.end()) {
+            std::cout << "Received email param: " << itr->second << std::endl;
+            return Responses::ok(req, "Email received");
+        }
+
+        return Responses::notFound(req);
+    });
+
     Router::instance().addStaticDirectoryRoute("/static", "public/");
 
     server.start();

@@ -29,6 +29,17 @@ ParseError HttpParser::parse(const std::string &raw, HttpRequest &request) {
         return ParseError::INVALID_REQUEST_LINE;
     }
 
+    // -------------------------------------
+    // Extract and parse query string
+    // -------------------------------------
+    size_t qmark = request.path.find('?');
+    if (qmark != std::string::npos) {
+        std::string qs = request.path.substr(qmark + 1);
+        request.path = request.path.substr(0, qmark);
+
+        parseQueryParams(qs, request.params);
+    }
+
     // -----------------------------
     // Validate method
     // -----------------------------
@@ -108,6 +119,50 @@ bool HttpParser::isValidHeaderName(const std::string &name) {
             return false;
     }
     return true;
+}
+
+std::string HttpParser::urlDecode(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == '%' && i + 2 < s.size()) {
+            char hex[3] = { s[i+1], s[i+2], 0 };
+            out.push_back(static_cast<char>(std::strtol(hex, nullptr, 16)));
+            i += 2;
+        } else if (s[i] == '+') {
+            out.push_back(' ');
+        } else {
+            out.push_back(s[i]);
+        }
+    }
+    return out;
+}
+
+void HttpParser::parseQueryParams(const std::string& qs,
+                             std::unordered_map<std::string, std::string>& map)
+{
+    size_t start = 0;
+
+    while (start < qs.size()) {
+        size_t amp = qs.find('&', start);
+        if (amp == std::string::npos)
+            amp = qs.size();
+
+        std::string pair = qs.substr(start, amp - start);
+
+        size_t eq = pair.find('=');
+        if (eq != std::string::npos) {
+            std::string key = urlDecode(pair.substr(0, eq));
+            std::string val = urlDecode(pair.substr(eq + 1));
+            map[ key ] = val;
+        } else {
+            // key with no value
+            map[ urlDecode(pair) ] = "";
+        }
+
+        start = amp + 1;
+    }
 }
 
 } // namespace HTTPServer

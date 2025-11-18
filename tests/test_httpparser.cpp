@@ -92,3 +92,100 @@ TEST(HttpParserTests, BodyParsing) {
     EXPECT_EQ(req.method, "POST");
     EXPECT_EQ(req.body, "hello world\n"); // parser adds newline
 }
+
+TEST(HttpParserTests, QueryStringSimple) {
+    const std::string raw = "GET /search?q=hello&page=2 HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/search");
+    EXPECT_EQ(req.params["q"], "hello");
+    EXPECT_EQ(req.params["page"], "2");
+}
+
+TEST(HttpParserTests, QueryStringURLDecoding) {
+    const std::string raw = "GET /find?term=hello%20world%21&x=%2Fpath%2F HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/find");
+    EXPECT_EQ(req.params["term"], "hello world!");
+    EXPECT_EQ(req.params["x"], "/path/");
+}
+
+TEST(HttpParserTests, QueryStringEmptyKeyOrValue) {
+    const std::string raw = "GET /test?empty=&alsoempty HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/test");
+
+    EXPECT_EQ(req.params["empty"], "");
+    EXPECT_EQ(req.params["alsoempty"], "");
+}
+
+TEST(HttpParserTests, QueryStringNoParamsAfterQuestionMark) {
+    const std::string raw = "GET /page? HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/page");
+    EXPECT_TRUE(req.params.empty());
+}
+
+TEST(HttpParserTests, QueryStringNoQuestionMark) {
+    const std::string raw = "GET /plain HTTP/1.1\r\n"
+                            "Host: localhost\r\n"
+                            "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/plain");
+    EXPECT_TRUE(req.params.empty());
+}
+
+TEST(HttpParserTests, QueryStringDuplicateKeys) {
+    const std::string raw =
+        "GET /dup?a=1&a=2 HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/dup");
+    EXPECT_EQ(req.params["a"], "2");
+}
+
+TEST(HttpParserTests, QueryStringUTF8Decoding) {
+    const std::string raw =
+        "GET /emoji?q=%F0%9F%98%80 HTTP/1.1\r\n" // UTF-8 😀
+        "Host: localhost\r\n"
+        "\r\n";
+
+    HttpRequest req;
+    ParseError err = HttpParser::parse(raw, req);
+
+    EXPECT_EQ(err, ParseError::NONE);
+    EXPECT_EQ(req.path, "/emoji");
+    EXPECT_EQ(req.params["q"], "😀");
+}
