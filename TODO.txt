@@ -3,7 +3,9 @@
 -- json response - need a json Reponse:: type similar to file::
 -- dynamic routes
 -- Add tests for router
--- Added Doxygen comments for public API
+-- Add Doxygen comments for public API (Use github action to automatically build and publish)
 -- Compile as a proper library not just a local library
 -- Support for returning JSON response
 -- Python wrapper similar to FastAPI
+-- Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
+-- Use this server as a backend for serving a simple file storage website (Like google drive)
