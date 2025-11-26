@@ -1,5 +1,6 @@
 -- serve static directores based on a catch-all **DONE**
 -- POST request handling (?id=10 paramerts in url) **DONE**
+-- Refactor
 -- json response - need a json Reponse:: type similar to file::
 -- dynamic routes
 -- Add tests for router
@@ -9,3 +10,4 @@
 -- Python wrapper similar to FastAPI
 -- Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
 -- Use this server as a backend for serving a simple file storage website (Like google drive)
+-- HTTPS?
