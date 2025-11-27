@@ -4,7 +4,7 @@ add_library(httpserver_lib
     src/logger.cpp
     src/http_parser.cpp
     src/utils.cpp
-    src/http_response.cpp
+    src/http_object.cpp
     src/http_response_builder.cpp
     src/router.cpp
 )

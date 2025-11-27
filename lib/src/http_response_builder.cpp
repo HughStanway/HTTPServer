@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 
-#include "httpserver/http_response.h"
+#include "httpserver/http_object.h"
 #include "httpserver/utils.h"
 #include "httpserver/logger.h"
 

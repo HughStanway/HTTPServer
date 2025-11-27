@@ -1,9 +1,10 @@
 -- serve static directores based on a catch-all **DONE**
 -- POST request handling (?id=10 paramerts in url) **DONE**
+-- dynamic routes **DONE**
+-- Add tests for router **DONE**
 -- Refactor
+-- Thread pool
 -- json response - need a json Reponse:: type similar to file::
--- dynamic routes
--- Add tests for router
 -- Add Doxygen comments for public API (Use github action to automatically build and publish)
 -- Compile as a proper library not just a local library
 -- Support for returning JSON response

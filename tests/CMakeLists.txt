@@ -9,6 +9,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(test_httpserver
     test_httpparser.cpp
+    test_router.cpp
 )
 
 target_link_libraries(test_httpserver

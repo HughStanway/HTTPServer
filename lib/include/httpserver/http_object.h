@@ -22,6 +22,20 @@ struct HttpRequest {
     std::unordered_map<std::string, std::string> params;
 };
 
+struct HttpResponse {
+    StatusCode code = StatusCode::InternalServerError;
+    std::string version = "HTTP/1.1";
+    std::unordered_map<std::string, std::string> headers;
+    std::string body;
+
+    HttpResponse& setStatus(StatusCode);
+    HttpResponse& addHeader(const std::string&, const std::string&);
+    HttpResponse& setBody(const std::string&);
+    HttpResponse& applyRequestDefaults(const HttpRequest&);
+
+    std::string serialize() const;
+};
+
 } // namespace HTTPServer
 
 #endif

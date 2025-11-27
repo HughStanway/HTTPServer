@@ -19,6 +19,15 @@ int main() {
         return Responses::file(req, "public/contact.html");
     });
 
+    Router::instance().addRoute("GET", "/usr/{uuid}", [](const HttpRequest& req) {
+        auto it = req.params.find("uuid");
+        if (it != req.params.end()) {
+            std::cout << "Recieved usr request: " << it->second << std::endl;
+            return Responses::ok(req, "GET [usr] request recieved");
+        }
+        return Responses::notFound(req);
+    });
+
     Router::instance().addRoute("GET", "/add", [](const HttpRequest& req) {
         auto itr = req.params.find("email");
         if (itr != req.params.end()) {
