@@ -1,4 +1,4 @@
-name: Asan and UBSan
+name: Sanitizers
 
 on:
   # push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  sanitizers:
+  asan-and-ubsan:
     runs-on: ubuntu-latest
 
     steps:
