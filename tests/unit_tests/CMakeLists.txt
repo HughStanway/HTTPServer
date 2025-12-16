@@ -23,5 +23,4 @@ target_include_directories(unit_tests
         ${PROJECT_SOURCE_DIR}/include
 )
 
-add_test(NAME HttpParserTests COMMAND unit_tests)
-add_test(NAME RouterTests COMMAND unit_tests)
+add_test(NAME UnitTests COMMAND unit_tests)
