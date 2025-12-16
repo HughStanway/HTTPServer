@@ -10,6 +10,7 @@ class Port {
   public:
     explicit Port(int value);
     explicit operator int() const;
+    bool operator==(const Port& other) const;
 
     int value() const;
     std::string toString() const;

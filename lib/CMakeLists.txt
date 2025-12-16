@@ -9,6 +9,15 @@ add_library(httpserver_lib
     src/router.cpp
 )
 
+find_package(OpenSSL REQUIRED)
+target_link_libraries(httpserver_lib PRIVATE
+    OpenSSL::SSL OpenSSL::Crypto
+)
+
+target_include_directories(httpserver_lib PUBLIC
+    ${OPENSSL_INCLUDE_DIR}
+)
+
 target_include_directories(httpserver_lib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include

@@ -45,3 +45,7 @@ build/
 Testing/
 .vscode/
 .DS_Store
+.env
+.venv
+.pytest_cache
+__pycache__

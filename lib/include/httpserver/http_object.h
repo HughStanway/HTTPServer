@@ -8,6 +8,7 @@ namespace HTTPServer {
 
 enum class StatusCode {
     OK = 200,
+    MovedPermanently = 301,
     BadRequest = 400,
     NotFound = 404,
     InternalServerError = 500,

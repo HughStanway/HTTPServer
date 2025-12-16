@@ -8,6 +8,7 @@
 #include "httpserver/http_object.h"
 #include "httpserver/utils.h"
 #include "httpserver/logger.h"
+#include "httpserver/port.h"
 
 namespace HTTPServer {
 
@@ -36,6 +37,22 @@ HttpResponse badRequest() {
               .addHeader("Content-Type", "text/plain")
               .addHeader("Connection", "close")
               .setBody("400 Bad Request");
+}
+
+HttpResponse redirection(const HttpRequest& req, const Port& port) {
+    std::string host = req.headers.count("Host") ? req.headers.at("Host") : "localhost";
+
+    auto colonPos = host.find(':');
+    if (colonPos != std::string::npos) {
+        host = host.substr(0, colonPos);
+    }
+
+    // Only include port if HTTPS is not on 443
+    std::string portStr = (port.value() == 443) ? "" : ":" + port.toString();
+    HttpResponse res;
+    return res.setStatus(StatusCode::MovedPermanently)
+            .addHeader("Location", "https://" + host + portStr + req.path)
+            .setBody("Redirecting to HTTPS...");
 }
 
 HttpResponse file(const HttpRequest& req, const std::string& filepath) {

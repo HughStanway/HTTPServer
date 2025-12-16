@@ -1,14 +1,96 @@
--- serve static directores based on a catch-all **DONE**
--- POST request handling (?id=10 paramerts in url) **DONE**
--- dynamic routes **DONE**
--- Add tests for router **DONE**
--- Refactor
--- Thread pool
--- json response - need a json Reponse:: type similar to file::
--- Add Doxygen comments for public API (Use github action to automatically build and publish)
--- Compile as a proper library not just a local library
--- Support for returning JSON response
--- Python wrapper similar to FastAPI
--- Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
--- Use this server as a backend for serving a simple file storage website (Like google drive)
--- HTTPS?
+[ ] Refactor - Rolling changes 
+[x] serve static directores based on a catch-all wildcard
+[x] POST request handling (?id=10 paramerts in url)
+[x] dynamic routes (/user/{uuid})
+[x] Add unit tests for router
+[x] Add integration tests
+[x] HTTPS
+[ ] Integration tests - internal server error and redirection server
+[ ] Thread pool
+[ ] IPv6
+[ ] json response - need a json Reponse:: type similar to file::
+[ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
+[ ] Compile as a proper library not just a local library
+[ ] Python wrapper similar to FastAPI
+[ ] Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
+[ ] Use this server as a backend for serving a simple file storage website (Like google drive)
+[ ] research man pages for sys calls used by server in order to make the socket setup better for deployment
+[ ] interative readme and create proper github release actions
+
+Further server enhancements:
+
+🛠️ Production Readiness TODO
+
+🟢 Phase 1 — Must-have hardening (High value, low risk)
+	•	Graceful shutdown / drain mode
+	    •	Add d_accepting flag to stop accepting new connections while allowing in-flight requests to finish
+	    •	Ensure accept loops exit cleanly without race conditions
+	•	Add send timeouts
+	    •	Set SO_SNDTIMEO alongside SO_RCVTIMEO
+	    •	Prevent blocking send() under backpressure or slow clients
+	•	Improve TLS error visibility
+	    •	Log OpenSSL error stack when SSL_accept() fails
+	    •	Use ERR_get_error() + ERR_error_string()
+	•	Limit concurrent connections
+	    •	Add maximum connection cap (e.g. kMaxConnections) or Thread Pool
+	    •	Reject new clients when limit is reached to avoid resource exhaustion
+
+⸻
+
+🟡 Phase 2 — HTTP correctness & security
+	•	Proper HTTP request framing
+	    •	Accumulate input until full headers are received (\r\n\r\n)
+	    •	Do not assume entire request arrives in a single recv()
+	•	Enforce header and body size limits
+	    •	Add configurable limits:
+	        •	Max header size (e.g. 8–16 KB)
+	        •	Max body size (e.g. 1 MB)
+	    •	Reject oversized requests early
+	•	Strict handling of malformed requests
+	    •	Close connection on parse failure
+	    •	Ensure malformed input cannot trigger keep-alive reuse
+
+⸻
+
+🟡 Phase 3 — Observability & diagnostics
+	•	Log remote client address
+	    •	Capture client IP/port at accept time
+	    •	Include in connection, error, and request logs
+	•	Improve log structure
+	    •	Standardize log fields (fd, IP, TLS, request path)
+	    •	Prepare for structured logging (even if logger remains simple)
+
+⸻
+
+🔵 Phase 4 — Performance & scalability (Optional)
+	•	Thread pool for client handling
+	    •	Replace per-connection threads with a bounded worker pool
+	    •	Prevent thread explosion under load
+	•	Non-blocking I/O (epoll / kqueue)
+	    •	Only if high concurrency (>1k clients) is required
+	    •	Consider as a future rewrite, not an incremental change
+
+⸻
+
+🔒 Phase 5 — TLS & security polish
+	•	Harden TLS configuration
+	    •	Disable legacy protocols (SSLv2, SSLv3, TLS 1.0/1.1)
+	    •	Consider restricted cipher suites
+	•	Basic rate limiting
+	    •	Limit:
+	        •	Connection attempts per IP
+	        •	Requests per connection
+	        •	Prevent abuse and simple DoS attacks
+
+⸻
+
+🧪 Phase 6 — Testing & robustness
+	•	Fuzz HTTP parser
+	    •	Use libFuzzer / AFL against HttpParser::parse
+	    •	Catch crashes and edge cases early
+	•	Integration tests
+	    •	Plain HTTP
+	    •	HTTPS
+	    •	HTTP → HTTPS redirection
+	    •	Keep-alive behavior
+	    •	Shutdown during active connections

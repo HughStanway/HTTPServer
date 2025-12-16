@@ -11,6 +11,10 @@ Port::Port(int value) : d_value(value) {}
 
 Port::operator int() const { return d_value; }
 
+bool Port::operator==(const Port& other) const {
+  return d_value == other.d_value;
+}
+
 int Port::value() const { return d_value; }
 
 std::string Port::toString() const { return std::to_string(d_value); }

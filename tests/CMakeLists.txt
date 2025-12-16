@@ -1,26 +1,2 @@
-include(FetchContent)
-
-FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-)
-
-FetchContent_MakeAvailable(googletest)
-
-add_executable(test_httpserver
-    test_httpparser.cpp
-    test_router.cpp
-)
-
-target_link_libraries(test_httpserver
-    gtest
-    gtest_main
-    httpserver_lib
-)
-
-target_include_directories(test_httpserver
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/include
-)
-
-add_test(NAME HttpParserTests COMMAND test_httpserver)
+add_subdirectory(unit_tests)
+add_subdirectory(integration_tests)
