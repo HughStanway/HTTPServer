@@ -2,9 +2,8 @@
 
 ![License](https://img.shields.io/github/license/HughStanway/HTTPServer)
 ![Stars](https://img.shields.io/github/stars/HughStanway/HTTPServer)
-[![Unit Tests](https://github.com/HughStanway/HTTPServer/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/HughStanway/HTTPServer/actions/workflows/unit-tests.yml)
-[![Integration Tests](https://github.com/HughStanway/HTTPServer/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/HughStanway/HTTPServer/actions/workflows/integration-tests.yml)
 ![Release](https://img.shields.io/github/v/release/HughStanway/HTTPServer)
+![Tests](https://img.shields.io/github/actions/workflow/status/HughStanway/HTTPServer/integration-tests.yml?branch=main)
 
 A small, single-binary HTTP server library and example application written in modern C++ (C++20).
 It provides a minimal HTTP request parser, routing, static-file handling, and helpers for building HTTP responses. The repository includes a test suite for the parser.
