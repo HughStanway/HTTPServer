@@ -1,9 +1,11 @@
-name: Asan and UBSan
+name: Sanitizers
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  sanitizers:
+  asan-and-ubsan:
     runs-on: ubuntu-latest
 
     steps:

@@ -32,7 +32,6 @@ def test_static_directory_route_invalid_path(runnable_server_instance: HttpServe
     
     # THEN:
     assert response.status == 404
-    print(runnable_server_instance.get_output())
 
 
 def test_static_directory_change_file_path_is_not_allowed(runnable_server_instance: HttpServerRunner):

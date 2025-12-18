@@ -66,7 +66,7 @@ class HttpServerRunner:
             if self._process.poll() is None:
                 self._process.terminate()
                 try:
-                    self._process.wait(timeout=6)
+                    self._process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     self._process.kill()
                     self._process.wait()

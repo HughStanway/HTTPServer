@@ -22,3 +22,5 @@ target_include_directories(unit_tests
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
 )
+
+add_test(NAME UnitTests COMMAND unit_tests)

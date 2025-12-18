@@ -1,6 +1,8 @@
-name: Matrix Builds
+name: Compile and Build
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:

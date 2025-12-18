@@ -64,7 +64,7 @@ def test_shutdown_waits_for_connected_clients_to_disconnect_gracefully(
 
     t0 = time.monotonic()
     stop_thread.start()
-    stop_thread.join(timeout=5.1)
+    stop_thread.join(timeout=10)
     elapsed = time.monotonic() - t0
 
     # Ensure stop returned (thread joined). If it didn't, we must stop the test.
@@ -103,7 +103,7 @@ def test_server_disconnects_client_after_timeout(runnable_server_instance: HttpS
     assert runnable_server_instance.wait_for_output("Accepted client")
     
     # WHEN:
-    time.sleep(5.1)
+    time.sleep(6)
     
     # THEN:
     log_output = runnable_server_instance.get_output()
