@@ -5,9 +5,9 @@
 [x] Add unit tests for router
 [x] Add integration tests
 [x] HTTPS
+[x] IPv6
 [ ] Integration tests - internal server error and redirection server
 [ ] Thread pool
-[ ] IPv6
 [ ] json response - need a json Reponse:: type similar to file::
 [ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] Compile as a proper library not just a local library
