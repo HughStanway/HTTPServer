@@ -19,9 +19,9 @@ void sig_handler(int) {
   }
 }
 
-int create_listening_socket(int domain, const sockaddr* addr, socklen_t addrlen,
-                            bool dualStackIPv6 = false) {
-  int fd = socket(domain, SOCK_STREAM, 0);
+int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
+                            bool dualStackIPv6 = true) {
+  int fd = socket(AF_INET6, SOCK_STREAM, 0);
   if (fd < 0) {
     LOG_ERROR_ERRNO("Socket creation failed");
     return -1;
@@ -32,7 +32,7 @@ int create_listening_socket(int domain, const sockaddr* addr, socklen_t addrlen,
     LOG_ERROR_ERRNO("setsockopt(SO_REUSEADDR) failed");
   }
 
-  if (domain == AF_INET6 && dualStackIPv6) {
+  if (dualStackIPv6) {
     int off = 0;
     setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
   }
@@ -100,8 +100,8 @@ void Server::stop() {
   d_running = false;
 
   if (server_fd >= 0) {
-  close(server_fd);
-}
+    close(server_fd);
+  }
 
   if (!(redirection_server_fd < 0)) {
     close(redirection_server_fd);
@@ -178,13 +178,13 @@ void Server::start() {
   }
 
   // 2. Start main server
-  sockaddr_in address{};
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = INADDR_ANY;
-  address.sin_port = d_port.toNetwork();
+  sockaddr_in6 address{};
+  address.sin6_family = AF_INET6;
+  address.sin6_addr = in6addr_any;
+  address.sin6_port = d_port.toNetwork();
 
-  server_fd = create_listening_socket(
-      AF_INET, reinterpret_cast<sockaddr*>(&address), sizeof(address));
+  server_fd = create_listening_socket(reinterpret_cast<sockaddr*>(&address),
+                                      sizeof(address));
 
   if (server_fd < 0) {
     LOG_ERROR("Startup: Fatal: Failed to create main server socket");
@@ -267,8 +267,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
   address.sin6_port = redirect_port.toNetwork();
 
   redirection_server_fd = create_listening_socket(
-      AF_INET6, reinterpret_cast<sockaddr*>(&address), sizeof(address),
-      true);  // dual-stack IPv4 + IPv6
+      reinterpret_cast<sockaddr*>(&address), sizeof(address));
 
   if (redirection_server_fd < 0) {
     LOG_ERROR("Redirection Server: Fatal: Failed to start redirect server");
