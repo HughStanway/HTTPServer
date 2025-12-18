@@ -103,7 +103,7 @@ def test_server_disconnects_client_after_timeout(runnable_server_instance: HttpS
     assert runnable_server_instance.wait_for_output("Accepted client")
     
     # WHEN:
-    time.sleep(5.1)
+    time.sleep(6)
     
     # THEN:
     log_output = runnable_server_instance.get_output()
