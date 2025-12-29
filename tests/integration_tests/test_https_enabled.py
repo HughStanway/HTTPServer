@@ -10,7 +10,7 @@ def test_https_get_root_returns_ok(runnable_server_instance: HttpServerRunner):
     # GIVEN:
     runnable_server_instance.start(with_https=True)
     assert runnable_server_instance.is_alive()
-    
+
     # WHEN:
     response, body, tls = _make_request(
         "GET",
@@ -18,12 +18,11 @@ def test_https_get_root_returns_ok(runnable_server_instance: HttpServerRunner):
         port=8443,
         use_https=True,
     )
-        
+
     # THEN:
     assert tls is not None
     assert tls["version"].startswith("TLS")
     assert tls["cipher"] is not None
     assert "connected via secure TLS" in runnable_server_instance.get_output()
     assert response.status == 200
-    assert 'OK' in body
-    
+    assert "OK" in body

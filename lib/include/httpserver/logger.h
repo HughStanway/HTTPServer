@@ -26,6 +26,7 @@ class Logger {
 
     std::string levelToString(LogLevel level);
     std::string currentTime();
+    std::string currentThreadName();
 
     LogLevel d_currentLogLevel{LogLevel::INFO};
     std::mutex d_mtx;

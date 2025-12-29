@@ -6,8 +6,9 @@
 [x] Add integration tests
 [x] HTTPS
 [x] IPv6
+[x] Thread pool - bounded, basic thread pool implementation with a single worker per connected client
+[x] Improve logging to include thread names for easier debugging
 [ ] Integration tests - internal server error and redirection server
-[ ] Thread pool
 [ ] json response - need a json Reponse:: type similar to file::
 [ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] Compile as a proper library not just a local library
@@ -22,61 +23,61 @@ Further server enhancements:
 🛠️ Production Readiness TODO
 
 🟢 Phase 1 — Must-have hardening (High value, low risk)
-	•	Graceful shutdown / drain mode
+	[ ]	Graceful shutdown / drain mode
 	    •	Add d_accepting flag to stop accepting new connections while allowing in-flight requests to finish
 	    •	Ensure accept loops exit cleanly without race conditions
-	•	Add send timeouts
+	[ ]	Add send timeouts
 	    •	Set SO_SNDTIMEO alongside SO_RCVTIMEO
 	    •	Prevent blocking send() under backpressure or slow clients
-	•	Improve TLS error visibility
+	[ ]	Improve TLS error visibility
 	    •	Log OpenSSL error stack when SSL_accept() fails
 	    •	Use ERR_get_error() + ERR_error_string()
-	•	Limit concurrent connections
+	[ ]	Limit concurrent connections
 	    •	Add maximum connection cap (e.g. kMaxConnections) or Thread Pool
 	    •	Reject new clients when limit is reached to avoid resource exhaustion
 
 ⸻
 
 🟡 Phase 2 — HTTP correctness & security
-	•	Proper HTTP request framing
+	[ ]	Proper HTTP request framing
 	    •	Accumulate input until full headers are received (\r\n\r\n)
 	    •	Do not assume entire request arrives in a single recv()
-	•	Enforce header and body size limits
+	[ ]	Enforce header and body size limits
 	    •	Add configurable limits:
 	        •	Max header size (e.g. 8–16 KB)
 	        •	Max body size (e.g. 1 MB)
 	    •	Reject oversized requests early
-	•	Strict handling of malformed requests
+	[ ]	Strict handling of malformed requests
 	    •	Close connection on parse failure
 	    •	Ensure malformed input cannot trigger keep-alive reuse
 
 ⸻
 
 🟡 Phase 3 — Observability & diagnostics
-	•	Log remote client address
+	[ ]	Log remote client address
 	    •	Capture client IP/port at accept time
 	    •	Include in connection, error, and request logs
-	•	Improve log structure
+	[ ]	Improve log structure
 	    •	Standardize log fields (fd, IP, TLS, request path)
 	    •	Prepare for structured logging (even if logger remains simple)
 
 ⸻
 
 🔵 Phase 4 — Performance & scalability (Optional)
-	•	Thread pool for client handling
+    [x]	Thread pool for client handling
 	    •	Replace per-connection threads with a bounded worker pool
 	    •	Prevent thread explosion under load
-	•	Non-blocking I/O (epoll / kqueue)
+	[ ]	Non-blocking I/O (epoll / kqueue) - event driven architecture similar to nginx or envoy
 	    •	Only if high concurrency (>1k clients) is required
 	    •	Consider as a future rewrite, not an incremental change
 
 ⸻
 
 🔒 Phase 5 — TLS & security polish
-	•	Harden TLS configuration
+	[ ]	Harden TLS configuration
 	    •	Disable legacy protocols (SSLv2, SSLv3, TLS 1.0/1.1)
 	    •	Consider restricted cipher suites
-	•	Basic rate limiting
+	[ ]	Basic rate limiting
 	    •	Limit:
 	        •	Connection attempts per IP
 	        •	Requests per connection
@@ -85,10 +86,10 @@ Further server enhancements:
 ⸻
 
 🧪 Phase 6 — Testing & robustness
-	•	Fuzz HTTP parser
+	[ ]	Fuzz HTTP parser
 	    •	Use libFuzzer / AFL against HttpParser::parse
 	    •	Catch crashes and edge cases early
-	•	Integration tests
+	[ ]	Integration tests
 	    •	Plain HTTP
 	    •	HTTPS
 	    •	HTTP → HTTPS redirection

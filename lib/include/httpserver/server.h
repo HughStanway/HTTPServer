@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <memory>
 
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
@@ -15,6 +16,7 @@
 #include "httpserver/port.h"
 #include "httpserver/router.h"
 #include "httpserver/utils.h"
+#include "httpserver/thread_pool.h"
 
 
 namespace HTTPServer {
@@ -37,13 +39,15 @@ class Server {
   static constexpr int kDefaultHttpRedirectPort = 8080;
   static constexpr size_t kRecvBufferSize = 4096;
   static constexpr int kMaxKeepAliveRequests = 100;
+  static constexpr size_t kMinThreads = 4;
+  static constexpr size_t kMaxThreads = 32;
 
   const Port d_port;
   Port d_redirection_port;
   int server_fd{-1};
   int redirection_server_fd{-1};
   std::atomic<bool> d_running{false};
-  std::vector<std::thread> client_threads;
+  std::unique_ptr<ThreadPool> d_thread_pool;
   bool https_enabled{false};
   bool http_redirection_enabled{false};
   std::string cert_path;

@@ -16,7 +16,7 @@ def test_get_root_returns_ok(runnable_server_instance: HttpServerRunner):
 
     # THEN:
     assert response.status == 200
-    assert 'OK' in body
+    assert "OK" in body
 
 
 def test_get_nonexistent_route_returns_404(runnable_server_instance: HttpServerRunner):
@@ -33,10 +33,12 @@ def test_get_nonexistent_route_returns_404(runnable_server_instance: HttpServerR
 
     # THEN:
     assert response.status == 404
-    assert '404 Not Found: /nonexistient' in body
+    assert "404 Not Found: /nonexistient" in body
 
 
-def test_keepalive_allows_multiple_requests_on_same_connection(runnable_server_instance: HttpServerRunner):
+def test_keepalive_allows_multiple_requests_on_same_connection(
+    runnable_server_instance: HttpServerRunner,
+):
     """
     Verify that a single connection can be reused for multiple requests (keep-alive) and is kept
     open by the server
@@ -46,26 +48,28 @@ def test_keepalive_allows_multiple_requests_on_same_connection(runnable_server_i
     assert runnable_server_instance.is_alive()
 
     # WHEN and THEN:
-    conn = HTTPConnection('127.0.0.1', 8080, timeout=2)
+    conn = HTTPConnection("127.0.0.1", 8080, timeout=2)
 
     # First request
-    conn.request('GET', '/')
+    conn.request("GET", "/")
     r1 = conn.getresponse()
-    b1 = r1.read().decode('utf-8')
+    b1 = r1.read().decode("utf-8")
     assert r1.status == 200
-    assert 'OK' in b1
+    assert "OK" in b1
 
     # Second request
-    conn.request('GET', '/')
+    conn.request("GET", "/")
     r2 = conn.getresponse()
-    b2 = r2.read().decode('utf-8')
+    b2 = r2.read().decode("utf-8")
     assert r2.status == 200
-    assert 'OK' in b2
+    assert "OK" in b2
 
     conn.close()
 
 
-def test_connection_close_header_closes_connection(runnable_server_instance: HttpServerRunner):
+def test_connection_close_header_closes_connection(
+    runnable_server_instance: HttpServerRunner,
+):
     """
     If the client sends 'Connection: close', the server should include 'Connection: close'
     and close the socket after responding.
@@ -75,9 +79,9 @@ def test_connection_close_header_closes_connection(runnable_server_instance: Htt
     assert runnable_server_instance.is_alive()
 
     # WHEN:
-    response, body = _make_request('GET', '/', {'Connection': 'close'})
+    response, body = _make_request("GET", "/", {"Connection": "close"})
 
     # THEN:
     assert response.status == 200
-    assert response.getheader('Connection') in ('close', 'Close', 'CLOSE')
-    assert 'OK' in body
+    assert response.getheader("Connection") in ("close", "Close", "CLOSE")
+    assert "OK" in body

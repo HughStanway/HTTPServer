@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <algorithm>
 #include <csignal>
 #include <cstring>
 #include <iostream>
@@ -108,13 +109,7 @@ void Server::stop() {
   }
 
   cleanup_ssl_context();
-
-  // Join all client threads
-  for (auto& t : client_threads) {
-    if (t.joinable()) t.join();
-  }
-  client_threads.clear();
-  LOG_INFO("Shutdown: All client threads finished.");
+  d_thread_pool->stop();
 }
 
 void Server::installSignalHandlers() {
@@ -192,33 +187,46 @@ void Server::start() {
   }
   d_running = true;
 
-  // 3. Start HTTP -> HTTPS forwarding if enabled
+  // 3. Start thread pool
+  size_t hw = static_cast<size_t>(std::thread::hardware_concurrency());
+  size_t thread_count = std::clamp(hw, kMinThreads, kMaxThreads);
+  d_thread_pool = std::make_unique<ThreadPool>(thread_count);
+  LOG_INFO("Thread pool started with " + std::to_string(thread_count) +
+           " worker threads");
+
+  // 4. Start HTTP -> HTTPS forwarding if enabled
   if (https_enabled && http_redirection_enabled) {
     if (d_port == d_redirection_port) {
       LOG_WARN("Startup: Redirection port [" + d_redirection_port.toString() +
                "] cannot be the same as server port [" + d_port.toString() +
                "]: Failed to start HTTP redirection");
     } else {
-      client_threads.emplace_back(
-          [this]() { start_http_redirect(d_redirection_port); });
+      if (d_thread_pool->enqueue(
+              [this]() { start_http_redirect(d_redirection_port); }) < 0) {
+        LOG_WARN(
+            "Startup: Thread pool queue limit reached - cannot start "
+            "redirection server");
+      }
     }
   }
 
   LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
            std::to_string(server_fd) + "] ...");
-  accept_loop<sockaddr_in>(server_fd, d_running, [this](int client_fd) {
+  accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
     set_socket_recv_timeout(client_fd, kClientRecvTimeoutSec);
 
     LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
-    dispatch_client(client_fd);
+    if (d_thread_pool->enqueue(
+            [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
+      close(client_fd);
+    }
   });
   LOG_INFO("Shutdown: Server main loop exited.");
 }
 
 void Server::dispatch_client(int client_fd) {
   if (!https_enabled) {
-    client_threads.emplace_back(
-        [this, client_fd]() { handle_client(client_fd); });
+    handle_client(client_fd);
     return;
   }
 
@@ -232,8 +240,7 @@ void Server::dispatch_client(int client_fd) {
     close(client_fd);
     return;
   }
-
-  client_threads.emplace_back([this, ssl]() { handle_client(ssl); });
+  handle_client(ssl);
 }
 
 void Server::handle_client(int client_fd) {

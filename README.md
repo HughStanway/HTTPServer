@@ -5,8 +5,7 @@
 ![Tests](https://img.shields.io/github/actions/workflow/status/HughStanway/HTTPServer/build-and-test.yml?branch=main)
 ![Release](https://img.shields.io/github/v/release/HughStanway/HTTPServer)
 
-A small, single-binary HTTP server library and example application written in modern C++ (C++20).
-It provides a minimal HTTP request parser, routing, static-file handling, and helpers for building HTTP responses. The repository includes a test suite for the parser.
+A small, single-binary HTTP server library and example application written in modern C++. It provides a minimal HTTP request parser, routing, static-file handling, and helpers for building HTTP and HTTPS servers.
 
 ## Directory Structure
 
@@ -19,13 +18,13 @@ It provides a minimal HTTP request parser, routing, static-file handling, and he
 ## Key components and API structure
 
 - Server: `server.h` — lifecycle (start/stop), signal handling, and socket management.
-- Threading: the server accepts connections and dispatches each client to a worker thread (thread-per-connection) with lightweight pooling and join semantics implemented in `lib/src/server.cpp`.
+- Worker Threads: The server dispatches incoming connections to be handled by a bounded thread pool of worker threads, defined in `thread_pool.h`, where clients are accepted and requests are handled.
 - Request parsing: `http_parser.h` — parsing request line, headers, and body into `HttpRequest` objects.
 - HTTP objects: `http_object.h` - defines HttpRequest and HttpReponse objects for representing requests and responses.
 - Router: `router.h` — API to register handlers and dispatch requests to application callbacks.
 - Response helpers: `http_response_builder.h` - for constructing response objects.
-- Utilities: `utils.h` - for MIME-type lookup, keep-alive logic, and helpers in.
-- Logger: `logger.h` - for lightweight logging implementation.
+- Utilities: `utils.h` - for MIME-type lookup, keep-alive logic, and helpers.
+- Logger: `logger.h` - for logging implementation.
 
 Refer to the headers in `lib/include/httpserver/` for data types and function signatures.
 
