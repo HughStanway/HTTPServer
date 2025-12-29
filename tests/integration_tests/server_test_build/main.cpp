@@ -1,6 +1,8 @@
 #include <httpserver/httpserver.h>
 #include <iostream>
 #include <cstdlib>
+#include <thread>
+#include <chrono>
 
 using namespace HTTPServer;
 
@@ -34,6 +36,12 @@ int main() {
     Router::instance().addRoute("GET", "/", [](const HttpRequest& req) {
         return Responses::ok(req, "OK");
     });
+
+    // Slow response route
+   Router::instance().addRoute("GET", "/slow", [](const HttpRequest& req) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        return Responses::ok(req, "OK");
+    }); 
 
     // Simple route which expects a single parameter 'input'
     Router::instance().addRoute("GET", "/param", [](const HttpRequest& req) {

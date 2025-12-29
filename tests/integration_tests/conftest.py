@@ -1,4 +1,4 @@
-import pytest # type: ignore
+import pytest  # type: ignore
 import os
 import subprocess
 import threading
@@ -29,7 +29,7 @@ class HttpServerRunner:
     def start(self, timeout: float = 2.0, with_https: bool = False) -> None:
         if self.is_alive():
             return
-        
+
         if with_https:
             self._env["TEST_ENABLE_HTTPS"] = "1"
 
@@ -116,12 +116,20 @@ def generate_test_certs(tmpdir: Path) -> Tuple[Path, Path]:
 
     subprocess.run(
         [
-            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
             "-nodes",
-            "-keyout", str(key),
-            "-out", str(cert),
-            "-days", "2",
-            "-subj", "/CN=localhost",
+            "-keyout",
+            str(key),
+            "-out",
+            str(cert),
+            "-days",
+            "2",
+            "-subj",
+            "/CN=localhost",
         ],
         check=True,
         stdout=subprocess.DEVNULL,
@@ -164,18 +172,20 @@ def server_temp_dir(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
         "key": key,
     }
 
- 
+
 @pytest.fixture()
-def runnable_server_instance(server_temp_dir: dict[str, Path]) -> Generator[HttpServerRunner]:
+def runnable_server_instance(
+    server_temp_dir: dict[str, Path],
+) -> Generator[HttpServerRunner]:
     env = os.environ.copy()
     env["TEST_ENABLE_HTTPS"] = "0"
     env["TEST_HTTPS_CERT"] = str(server_temp_dir["cert"])
     env["TEST_HTTPS_KEY"] = str(server_temp_dir["key"])
     env["TEST_STATIC_DIR"] = str(server_temp_dir["static_dir"])
-    
+
     runner = HttpServerRunner(env=env)
     yield runner
-    
+
     # Ensure server is always stopped
     runner.stop()
     assert not runner.is_alive()

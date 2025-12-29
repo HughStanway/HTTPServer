@@ -36,6 +36,25 @@ std::string Logger::currentTime() {
     return std::string(buf);
 }
 
+std::string Logger::currentThreadName() {
+    char name[64] = {0};
+
+#if defined(__APPLE__)
+    pthread_getname_np(pthread_self(), name, sizeof(name));
+#elif defined(__linux__)
+    pthread_getname_np(pthread_self(), name, sizeof(name));
+#else
+    // Fallback if unsupported
+    return "thread-" + std::to_string(
+        std::hash<std::thread::id>{}(std::this_thread::get_id()));
+#endif
+
+    if (name[0] == '\0') {
+        return "main-thread";
+    }
+    return std::string(name);
+}
+
 void Logger::log(const std::string &message, LogLevel level) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
@@ -45,7 +64,9 @@ void Logger::log(const std::string &message, LogLevel level) {
     }
 
     std::cout << "[" << currentTime() << "] "
-              << "[" << levelToString(level) << "] " << message << std::endl;
+          << "[" << levelToString(level) << "] "
+          << "[" << currentThreadName() << "] "
+          << message << std::endl;
 }
 
 void Logger::logErrno(const std::string &message, LogLevel level) {
