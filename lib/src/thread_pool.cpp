@@ -8,7 +8,12 @@ ThreadPool::ThreadPool(size_t thread_count) {
   d_workers.reserve(thread_count);
   for (size_t i = 0; i < thread_count; ++i) {
     d_workers.emplace_back([this, i] {
-      pthread_setname_np(("http-worker-" + std::to_string(i)).c_str());
+      std::string name = "http-worker-" + std::to_string(i);
+#if defined(__APPLE__)
+      pthread_setname_np(name.c_str());
+#elif defined(__linux__)
+      pthread_setname_np(pthread_self(), name.c_str());
+#endif
       worker_loop();
     });
   }
