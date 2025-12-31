@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -35,7 +36,7 @@ class Server {
   void enableHttpRedirection(Port redirection_port = Port(80));
 
  private:
-  static constexpr int kClientRecvTimeoutSec = 5;
+  static constexpr int kClientTimeoutSec = 5;
   static constexpr int kDefaultHttpRedirectPort = 8080;
   static constexpr size_t kRecvBufferSize = 4096;
   static constexpr int kMaxKeepAliveRequests = 100;
@@ -106,7 +107,13 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
     }
 
     std::string payload = response.serialize();
-    writeFunc(payload.c_str(), payload.size());
+    bytes = writeFunc(payload.c_str(), payload.size());
+    if (bytes <= 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        LOG_INFO("Client [" + std::to_string(client_fd) +
+                "] send timeout reached, closing");
+      }
+    }
 
     requests_handled++;
     if (!keepAlive) break;

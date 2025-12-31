@@ -26,13 +26,13 @@ Further server enhancements:
 	[ ]	Graceful shutdown / drain mode
 	    •	Add d_accepting flag to stop accepting new connections while allowing in-flight requests to finish
 	    •	Ensure accept loops exit cleanly without race conditions
-	[ ]	Add send timeouts
+	[x]	Add send timeouts
 	    •	Set SO_SNDTIMEO alongside SO_RCVTIMEO
 	    •	Prevent blocking send() under backpressure or slow clients
-	[ ]	Improve TLS error visibility
+	[x]	Improve TLS error visibility
 	    •	Log OpenSSL error stack when SSL_accept() fails
 	    •	Use ERR_get_error() + ERR_error_string()
-	[ ]	Limit concurrent connections
+	[x]	Limit concurrent connections **Done via Thread Pool**
 	    •	Add maximum connection cap (e.g. kMaxConnections) or Thread Pool
 	    •	Reject new clients when limit is reached to avoid resource exhaustion
 

@@ -92,12 +92,12 @@ def test_shutdown_waits_for_connected_clients_to_disconnect_gracefully(
         pass
 
 
-def test_server_disconnects_client_after_timeout(
+def test_server_disconnects_client_after_recv_timeout(
     runnable_server_instance: HttpServerRunner,
 ):
     """
-    Test verifies that clients that dont close the connection are disconnected by the server
-    after a preset 5 second time out if no requests are sent
+    Test verifies that clients that don't close the connection and block on recv()
+    are disconnected by the server after a preset 5 second time out.
     """
     # GIVEN:
     runnable_server_instance.start()

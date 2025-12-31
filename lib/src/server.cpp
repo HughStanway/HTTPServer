@@ -72,13 +72,23 @@ void accept_loop(int listen_fd, std::atomic<bool>& running, Handler handler) {
   }
 }
 
-void set_socket_recv_timeout(int fd, int seconds) {
+template<typename Option>
+void set_socket_timeout_option(int fd, int seconds, Option option) {
   struct timeval timeout{};
   timeout.tv_sec = seconds;
   timeout.tv_usec = 0;
 
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+  if (setsockopt(fd, SOL_SOCKET, option, &timeout, sizeof(timeout)) < 0) {
     LOG_ERROR_ERRNO("setsockopt(SO_RCVTIMEO) failed");
+  }
+}
+
+void log_ssl_errors(const std::string& prefix) {
+  unsigned long err;
+  while ((err = ERR_get_error()) != 0) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    LOG_ERROR(prefix + ": " + buf);
   }
 }
 
@@ -104,7 +114,7 @@ void Server::stop() {
     close(server_fd);
   }
 
-  if (!(redirection_server_fd < 0)) {
+  if (redirection_server_fd >= 0) {
     close(redirection_server_fd);
   }
 
@@ -185,7 +195,6 @@ void Server::start() {
     LOG_ERROR("Startup: Fatal: Failed to create main server socket");
     return;
   }
-  d_running = true;
 
   // 3. Start thread pool
   size_t hw = static_cast<size_t>(std::thread::hardware_concurrency());
@@ -210,10 +219,14 @@ void Server::start() {
     }
   }
 
+  // 5. Allow connections
+  d_running = true;
+
   LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
            std::to_string(server_fd) + "] ...");
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
-    set_socket_recv_timeout(client_fd, kClientRecvTimeoutSec);
+    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
+    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
 
     LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
     if (d_thread_pool->enqueue(
@@ -236,6 +249,7 @@ void Server::dispatch_client(int client_fd) {
   if (SSL_accept(ssl) <= 0) {
     LOG_ERROR("Client [" + std::to_string(client_fd) +
               "] TLS handshake failed");
+    log_ssl_errors("OpenSSL");
     SSL_free(ssl);
     close(client_fd);
     return;
@@ -286,7 +300,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
            std::to_string(redirection_server_fd) + "] ...");
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
-        set_socket_recv_timeout(client_fd, kClientRecvTimeoutSec);
+        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
+        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
 
         LOG_INFO("Accepted client [" + std::to_string(client_fd) +
                  "] on redirect server");
