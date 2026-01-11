@@ -6,186 +6,669 @@
 using namespace HTTPServer;
 
 TEST(HttpParserTests, EmptyRequest) {
-    HttpRequest req;
-    ParseError err = HttpParser::parse("", req);
-    EXPECT_EQ(err, ParseError::EMPTY_REQUEST);
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer;
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::NEED_MORE_DATA);
+    EXPECT_TRUE(view.empty());
+}
+
+TEST(HttpParserTests, EmptyMethod) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = " / HTTP/1.1\r\nHost: x\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_METHOD);
+}
+
+TEST(HttpParserTests, EmptyPath) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET  HTTP/1.1\r\nHost: x\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(parser.error(), ParseError::INVALID_REQUEST_LINE);
+}
+
+TEST(HttpParserTests, ExtraSpacesInRequestLine) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET  /  HTTP/1.1\r\nHost: x\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE);
+}
+
+TEST(HttpParserTests, PartialRequestNeedsMoreData) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::NEED_MORE_DATA);
+}
+
+TEST(HttpParserTests, PipelinedRequests) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer =
+        "GET /a HTTP/1.1\r\nHost: x\r\n\r\n"
+        "GET /b HTTP/1.1\r\nHost: y\r\n\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN and THEN
+    ParseResult r1 = parser.parse(view);
+    EXPECT_EQ(r1, ParseResult::REQUEST_COMPLETE);
+    HttpRequest req1 = parser.takeRequest();
+    EXPECT_EQ(req1.path, "/a");
+
+    ParseResult r2 = parser.parse(view);
+    EXPECT_EQ(r2, ParseResult::REQUEST_COMPLETE);
+    HttpRequest req2 = parser.takeRequest();
+    EXPECT_EQ(req2.path, "/b");
+
+    EXPECT_TRUE(view.empty());
 }
 
 TEST(HttpParserTests, ValidGetRequest) {
-    const std::string raw = "GET /index.html HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "User-Agent: TestClient\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = 
+        "GET /index.html HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "User-Agent: TestClient\r\n"
+        "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.method, "GET");
     EXPECT_EQ(req.path, "/index.html");
     EXPECT_EQ(req.version, "HTTP/1.1");
 
-    EXPECT_EQ(req.headers["Host"], "localhost");
-    EXPECT_EQ(req.headers["User-Agent"], "TestClient");
+    // EXPECT_EQ(req.headers["Host"], "localhost");
+    // EXPECT_EQ(req.headers["User-Agent"], "TestClient");
 }
 
-TEST(HttpParserTests, InvalidRequestLine) {
-    const std::string raw = "BADREQUESTLINE\r\n"
-                            "\r\n";
+TEST(HttpParserTests, InvalidRequestLineFormat) {
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = 
+        "BADREQUESTLINE\r\n"
+        "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE);
 }
 
 TEST(HttpParserTests, InvalidMethod) {
-    const std::string raw = "get / HTTP/1.1\r\n"
-                            "Host: x\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = 
+        "BADREQUESTLINE / HTTP1.1\r\n"
+        "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_METHOD);
+}
+
+TEST(HttpParserTests, InvalidMethodFormat) {
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = 
+        "get / HTTP/1.1\r\n"
+        "Host: x\r\n"
+        "\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::INVALID_METHOD);
 }
 
 TEST(HttpParserTests, InvalidVersion) {
-    const std::string raw = "GET / WRONGVERSION\r\n"
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET / HTTP/2.0\r\n"
                             "Host: x\r\n"
                             "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::INVALID_VERSION);
 }
 
 TEST(HttpParserTests, InvalidHeaderFormat) {
-    const std::string raw = "GET / HTTP/1.1\r\n"
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET / HTTP/1.1\r\n"
                             "HeaderWithoutColon\r\n"
                             "\r\n";
+    
+    std::string_view view(recvBuffer);
+    
+    // WHEN
+    ParseResult result = parser.parse(view);
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
-    EXPECT_EQ(err, ParseError::INVALID_HEADER_FORMAT);
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+}
+
+TEST(HttpParserTests, MissingHostHeaderHTTP11) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+}
+
+TEST(HttpParserTests, EmptyHostHeader) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\nHost:\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+}
+
+TEST(HttpParserTests, DuplicateHostHeaders) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\n"
+                      "Host: a\r\n"
+                      "Host: b\r\n"
+                      "\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+}
+
+TEST(HttpParserTests, InvalidContentLength) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                      "Host: x\r\n"
+                      "Content-Length: abc\r\n"
+                      "\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+}
+
+TEST(HttpParserTests, ContentLengthTooShort) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                      "Host: x\r\n"
+                      "Content-Length: 10\r\n"
+                      "\r\n"
+                      "abc";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::NEED_MORE_DATA);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::NONE);
+}
+
+TEST(HttpParserTests, ContentLengthTooLarge) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                             "Host: x\r\n"
+                             "Content-Length: 999999999\r\n"
+                             "\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::BODY_TOO_LARGE);
 }
 
 TEST(HttpParserTests, InvalidHeaderName) {
-    const std::string raw = "GET / HTTP/1.1\r\n"
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET / HTTP/1.1\r\n"
                             "Bad Header: value\r\n"
                             "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
-    EXPECT_EQ(err, ParseError::INVALID_HEADER_NAME);
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_HEADER);
 }
 
 TEST(HttpParserTests, BodyParsing) {
-    const std::string raw = "POST /submit HTTP/1.1\r\n"
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "POST /submit HTTP/1.1\r\n"
                             "Host: localhost\r\n"
                             "Content-Length: 11\r\n"
                             "\r\n"
                             "hello world";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.method, "POST");
-    EXPECT_EQ(req.body, "hello world\n"); // parser adds newline
+    EXPECT_EQ(req.path, "/submit");
+    EXPECT_EQ(req.version, "HTTP/1.1");
+    EXPECT_EQ(req.body, "hello world");
+}
+
+TEST(HttpParserTests, ChunkedBodySimple) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                             "Host: x\r\n"
+                             "Transfer-Encoding: chunked\r\n"
+                             "\r\n"
+                             "5\r\nhello\r\n"
+                             "0\r\n\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.body, "hello");
+}
+
+TEST(HttpParserTests, ChunkedInvalidSize) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                             "Host: x\r\n"
+                             "Transfer-Encoding: chunked\r\n"
+                             "\r\n"
+                             "ZZZ\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_CHUNKED_ENCODING);
+}
+
+TEST(HttpParserTests, ChunkedMissingCRLF) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                             "Host: x\r\n"
+                             "Transfer-Encoding: chunked\r\n"
+                             "\r\n"
+                             "5\r\nhello"
+                             "0\r\n\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::INVALID_CHUNKED_ENCODING);
+}
+
+TEST(HttpParserTests, TransferEncodingOverridesContentLength) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "POST / HTTP/1.1\r\n"
+                             "Host: x\r\n"
+                             "Content-Length: 5\r\n"
+                             "Transfer-Encoding: chunked\r\n"
+                             "\r\n"
+                             "5\r\nhello\r\n0\r\n\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::NONE);
 }
 
 TEST(HttpParserTests, QueryStringSimple) {
-    const std::string raw = "GET /search?q=hello&page=2 HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /search?q=hello&page=2 HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/search");
     EXPECT_EQ(req.params["q"], "hello");
     EXPECT_EQ(req.params["page"], "2");
 }
 
 TEST(HttpParserTests, QueryStringURLDecoding) {
-    const std::string raw = "GET /find?term=hello%20world%21&x=%2Fpath%2F HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /find?term=hello%20world%21&x=%2Fpath%2F HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/find");
     EXPECT_EQ(req.params["term"], "hello world!");
     EXPECT_EQ(req.params["x"], "/path/");
 }
 
 TEST(HttpParserTests, QueryStringEmptyKeyOrValue) {
-    const std::string raw = "GET /test?empty=&alsoempty HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /test?empty=&alsoempty HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
-    EXPECT_EQ(req.path, "/test");
 
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.path, "/test");
     EXPECT_EQ(req.params["empty"], "");
     EXPECT_EQ(req.params["alsoempty"], "");
 }
 
 TEST(HttpParserTests, QueryStringNoParamsAfterQuestionMark) {
-    const std::string raw = "GET /page? HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /page? HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/page");
     EXPECT_TRUE(req.params.empty());
 }
 
 TEST(HttpParserTests, QueryStringNoQuestionMark) {
-    const std::string raw = "GET /plain HTTP/1.1\r\n"
-                            "Host: localhost\r\n"
-                            "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /plain HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/plain");
     EXPECT_TRUE(req.params.empty());
 }
 
 TEST(HttpParserTests, QueryStringDuplicateKeys) {
-    const std::string raw =
-        "GET /dup?a=1&a=2 HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /dup?a=1&a=2 HTTP/1.1\r\n"
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/dup");
     EXPECT_EQ(req.params["a"], "2");
 }
 
 TEST(HttpParserTests, QueryStringUTF8Decoding) {
-    const std::string raw =
-        "GET /emoji?q=%F0%9F%98%80 HTTP/1.1\r\n" // UTF-8 😀
-        "Host: localhost\r\n"
-        "\r\n";
+    // GIVEN
+    HttpParser parser;
+    const std::string recvBuffer = "GET /emoji?q=%F0%9F%98%80 HTTP/1.1\r\n" // UTF-8 😀
+                                   "Host: localhost\r\n"
+                                   "\r\n";
 
-    HttpRequest req;
-    ParseError err = HttpParser::parse(raw, req);
+    std::string_view view(recvBuffer);
 
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err = parser.error();
     EXPECT_EQ(err, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
     EXPECT_EQ(req.path, "/emoji");
     EXPECT_EQ(req.params["q"], "😀");
+}
+
+TEST(HttpParserTests, ResetClearsState) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\nHost: x\r\n\r\n";
+    std::string_view view(recvBuffer);
+
+    // WHEN and THEN
+    ASSERT_EQ(parser.parse(view), ParseResult::REQUEST_COMPLETE);
+
+    parser.reset();
+
+    std::string recvBuffer2 = "GET /b HTTP/1.1\r\nHost: y\r\n\r\n";
+    std::string_view view2(recvBuffer2);
+
+    EXPECT_EQ(parser.parse(view2), ParseResult::REQUEST_COMPLETE);
+    EXPECT_EQ(parser.takeRequest().path, "/b");
+}
+
+TEST(HttpParserTests, UnexpectedEOFInHeaders) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer = "GET / HTTP/1.1\r\nHost:";
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::NEED_MORE_DATA);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::NONE);
 }

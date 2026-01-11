@@ -40,7 +40,8 @@ HttpResponse badRequest() {
 }
 
 HttpResponse redirection(const HttpRequest& req, const Port& port) {
-    std::string host = req.headers.count("Host") ? req.headers.at("Host") : "localhost";
+    auto host_header = get_last_header_value(req, "Host");
+    std::string host = host_header ? std::string(*host_header) : "localhost";
 
     auto colonPos = host.find(':');
     if (colonPos != std::string::npos) {

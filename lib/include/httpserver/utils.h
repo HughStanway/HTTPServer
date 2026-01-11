@@ -3,7 +3,9 @@
 
 #include "http_object.h"
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace HTTPServer {
 
@@ -15,6 +17,8 @@ namespace Mime {
 std::string fromExtension(const std::string&);
 
 } // namespace Mime
+
+std::optional<std::string_view> get_last_header_value(const HttpRequest& req, std::string_view name);
 
 } // namespace HTTPServer
 

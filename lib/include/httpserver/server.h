@@ -1,14 +1,14 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <memory>
 #include <thread>
 #include <vector>
-#include <memory>
 
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
@@ -16,9 +16,8 @@
 #include "httpserver/logger.h"
 #include "httpserver/port.h"
 #include "httpserver/router.h"
-#include "httpserver/utils.h"
 #include "httpserver/thread_pool.h"
-
+#include "httpserver/utils.h"
 
 namespace HTTPServer {
 
@@ -72,6 +71,8 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
   LOG_INFO("Client [" + std::to_string(client_fd) + "] connected" +
            (isTLS ? " via secure TLS" : ""));
 
+  HttpParser parser;
+  std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
   while (keepAlive && requests_handled < kMaxKeepAliveRequests) {
@@ -90,21 +91,34 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
       break;
     }
 
-    std::string raw(buffer, bytes);
-    HttpRequest request;
-    ParseError err = HttpParser::parse(raw, request);
-    HttpResponse response;
-    if (err != ParseError::NONE) {
-      LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
-                "]: " + request.method + " " + request.path);
-      response = Responses::badRequest();
-      keepAlive = false;
-    } else {
-      LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
-               "]: " + request.method + " " + request.path);
-      response = Router::instance().route(request);
-      keepAlive = requestWantsKeepAlive(request);
+    recvBuffer.append(buffer, bytes);
+    std::string_view view(recvBuffer);
+    ParseResult result = parser.parse(view);
+
+    // Remove consumed bytes
+    recvBuffer.erase(0, recvBuffer.size() - view.size());
+
+    if (result == ParseResult::NEED_MORE_DATA) {
+      continue;
     }
+
+    if (result == ParseResult::PARSE_ERROR) {
+      LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
+                "]");
+      HttpResponse resp = Responses::badRequest();
+      auto payload = resp.serialize();
+      writeFunc(payload.c_str(), payload.size());
+      break;
+    }
+
+    // REQUEST_COMPLETE
+    HttpRequest request = parser.takeRequest();
+
+    LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
+             "]: " + request.method + " " + request.path);
+
+    HttpResponse response = Router::instance().route(request);
+    keepAlive = requestWantsKeepAlive(request);
 
     std::string payload = response.serialize();
     bytes = writeFunc(payload.c_str(), payload.size());
@@ -116,7 +130,6 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
     }
 
     requests_handled++;
-    if (!keepAlive) break;
   }
 
   if (isTLS && ssl) {
