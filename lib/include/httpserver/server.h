@@ -21,21 +21,41 @@
 
 namespace {
 
-  bool is_tls_handshake_attempt(const std::string& data) {
-  // TLS record starts with content type (0x16 for handshake), followed by version
-  // TLS 1.0/1.1/1.2 all start with 0x16 0x03
-  if (data.size() >= 2) {
-    unsigned char byte0 = static_cast<unsigned char>(data[0]);
-    unsigned char byte1 = static_cast<unsigned char>(data[1]);
-    // Check for TLS handshake record (0x16) with version 0x03
-    if (byte0 == 0x16 && byte1 == 0x03) {
-      return true;
-    }
+bool is_tls_handshake_attempt(const std::string& data) {
+  // Detects TLS 1.0, 1.1, 1.2, and 1.3 handshake attempts
+  // TLS record format: content_type (1 byte) + version (2 bytes) + length (2
+  // bytes) + payload All TLS versions use:
+  //   - Content type 0x16 (Handshake)
+  //   - Version bytes 0x03 0x0x (0x03 0x01 for TLS 1.0, 0x03 0x02 for TLS 1.1,
+  //   etc.)
+  //   - TLS 1.3 uses 0x03 0x03 in the record (legacy compatibility)
+
+  if (data.size() < 3) {
+    return false;
   }
+
+  unsigned char byte0 = static_cast<unsigned char>(data[0]);
+  unsigned char byte1 = static_cast<unsigned char>(data[1]);
+  unsigned char byte2 = static_cast<unsigned char>(data[2]);
+
+  // Check for TLS handshake record (0x16)
+  if (byte0 != 0x16) {
+    return false;
+  }
+
+  // Check for TLS version (0x03 0x0x where second byte is 0x01-0x03)
+  // TLS 1.0: 0x03 0x01
+  // TLS 1.1: 0x03 0x02
+  // TLS 1.2: 0x03 0x03
+  // TLS 1.3: 0x03 0x03 (uses legacy version in record)
+  if (byte1 == 0x03 && byte2 >= 0x01 && byte2 <= 0x03) {
+    return true;
+  }
+
   return false;
 }
 
-}
+}  // namespace
 
 namespace HTTPServer {
 
@@ -153,7 +173,7 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
     if (bytes <= 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG_INFO("Client [" + std::to_string(client_fd) +
-                "] send timeout reached, closing");
+                 "] send timeout reached, closing");
       }
     }
 
