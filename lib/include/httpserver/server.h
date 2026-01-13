@@ -19,6 +19,24 @@
 #include "httpserver/thread_pool.h"
 #include "httpserver/utils.h"
 
+namespace {
+
+  bool is_tls_handshake_attempt(const std::string& data) {
+  // TLS record starts with content type (0x16 for handshake), followed by version
+  // TLS 1.0/1.1/1.2 all start with 0x16 0x03
+  if (data.size() >= 2) {
+    unsigned char byte0 = static_cast<unsigned char>(data[0]);
+    unsigned char byte1 = static_cast<unsigned char>(data[1]);
+    // Check for TLS handshake record (0x16) with version 0x03
+    if (byte0 == 0x16 && byte1 == 0x03) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}
+
 namespace HTTPServer {
 
 class Server {
@@ -92,6 +110,16 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
     }
 
     recvBuffer.append(buffer, bytes);
+
+    // Detect TLS handshake on non-HTTPS connection
+    if (!isTLS && is_tls_handshake_attempt(recvBuffer)) {
+      LOG_ERROR("Client [" + std::to_string(client_fd) +
+                "] attempted TLS handshake on non-HTTPS port");
+      close(client_fd);
+      LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
+      return;
+    }
+
     std::string_view view(recvBuffer);
     ParseResult result = parser.parse(view);
 
