@@ -109,10 +109,28 @@ bool HttpParser::parseRequestLine(std::string_view& buffer) {
 
   auto& line = d_lineBuffer;
   auto p1 = line.find(' ');
-  auto p2 = line.find(' ', p1 + 1);
+  if (p1 == std::string::npos) {
+    d_error = ParseError::INVALID_REQUEST_LINE_FORMAT;
+    d_state = ParseState::ERROR;
+    return false;
+  }
 
-  if (p1 == std::string::npos || p2 == std::string::npos) {
-    d_error = ParseError::INVALID_REQUEST_LINE;
+  auto p2 = line.find(' ', p1 + 1);
+  if (p2 == std::string::npos) {
+    d_error = ParseError::INVALID_REQUEST_LINE_FORMAT;
+    d_state = ParseState::ERROR;
+    return false;
+  }
+
+  if (p2 == p1 + 1) {  // Two spaces in a row
+    d_error = ParseError::INVALID_REQUEST_LINE_FORMAT;
+    d_state = ParseState::ERROR;
+    return false;
+  }
+
+  // Check for third whitespace character
+  if (line.find(' ', p2 + 1) != std::string::npos) {
+    d_error = ParseError::INVALID_REQUEST_LINE_FORMAT;
     d_state = ParseState::ERROR;
     return false;
   }
@@ -122,7 +140,7 @@ bool HttpParser::parseRequestLine(std::string_view& buffer) {
   d_request.version = line.substr(p2 + 1);
 
   if (d_request.path.empty()) {
-    d_error = ParseError::INVALID_REQUEST_LINE;
+    d_error = ParseError::INVALID_REQUEST_LINE_FORMAT;
     d_state = ParseState::ERROR;
     return false;
   }
@@ -146,24 +164,24 @@ bool HttpParser::parseRequestLine(std::string_view& buffer) {
 
 bool HttpParser::validateRequestLine() {
   if (d_request.method.empty()) {
-    d_error = ParseError::INVALID_METHOD;
+    d_error = ParseError::REQUEST_METHOD_EMPTY;
     return false;
   }
 
   for (unsigned char c : d_request.method) {
     if (!std::isupper(c)) {
-      d_error = ParseError::INVALID_METHOD;
+      d_error = ParseError::REQUEST_METHOD_LOWERCASE;
       return false;
     }
   }
 
   if (!kAllowedMethods.contains(d_request.method)) {
-    d_error = ParseError::INVALID_METHOD;
+    d_error = ParseError::UNSUPPORTED_METHOD;
     return false;
   }
 
   if (!kAllowedVersions.contains(d_request.version)) {
-    d_error = ParseError::INVALID_VERSION;
+    d_error = ParseError::UNSUPPORTED_VERSION;
     return false;
   }
 
@@ -186,7 +204,7 @@ bool HttpParser::parseHeaders(std::string_view& buffer) {
 
     auto colon = d_lineBuffer.find(':');
     if (colon == std::string::npos) {
-      d_error = ParseError::INVALID_HEADER;
+      d_error = ParseError::INVALID_HEADER_MISSING_COLON;
       d_state = ParseState::ERROR;
       return false;
     }
@@ -196,7 +214,7 @@ bool HttpParser::parseHeaders(std::string_view& buffer) {
 
     for (unsigned char c : name) {
       if (!(std::isalnum(c) || c == '-')) {
-        d_error = ParseError::INVALID_HEADER;
+        d_error = ParseError::INVALID_HEADER_UNSUPPORTED_CHARACTER;
         d_state = ParseState::ERROR;
         return false;
       }
@@ -214,7 +232,7 @@ bool HttpParser::validateHeaders() {
     auto host = d_request.headers.find("Host");
     if (host == d_request.headers.end() || host->second.empty() ||
         host->second.back().empty() || host->second.size() != 1) {
-      d_error = ParseError::INVALID_HEADER;
+      d_error = ParseError::MISSING_HOST_HEADER;
       d_state = ParseState::ERROR;
       return false;
     }
@@ -223,14 +241,14 @@ bool HttpParser::validateHeaders() {
   auto cl = d_request.headers.find("Content-Length");
   if (cl != d_request.headers.end()) {
     if (cl->second.empty()) {
-      d_error = ParseError::INVALID_HEADER;
+      d_error = ParseError::CONTENT_LENGTH_EMPTY;
       d_state = ParseState::ERROR;
       return false;
     }
     char* end = nullptr;
     std::strtoul(cl->second.back().c_str(), &end, 10);
     if (end == cl->second.back().c_str() || *end != '\0') {
-      d_error = ParseError::INVALID_HEADER;
+      d_error = ParseError::CONTENT_LENGTH_NOT_NUMERIC;
       d_state = ParseState::ERROR;
       return false;
     }

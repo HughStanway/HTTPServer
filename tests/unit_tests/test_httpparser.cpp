@@ -32,7 +32,7 @@ TEST(HttpParserTests, EmptyMethod) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_METHOD);
+    EXPECT_EQ(err, ParseError::REQUEST_METHOD_EMPTY);
 }
 
 TEST(HttpParserTests, EmptyPath) {
@@ -48,7 +48,7 @@ TEST(HttpParserTests, EmptyPath) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(parser.error(), ParseError::INVALID_REQUEST_LINE);
+    EXPECT_EQ(parser.error(), ParseError::INVALID_REQUEST_LINE_FORMAT);
 }
 
 TEST(HttpParserTests, ExtraSpacesInRequestLine) {
@@ -64,7 +64,7 @@ TEST(HttpParserTests, ExtraSpacesInRequestLine) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE);
+    EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE_FORMAT);
 }
 
 TEST(HttpParserTests, PartialRequestNeedsMoreData) {
@@ -128,8 +128,8 @@ TEST(HttpParserTests, ValidGetRequest) {
     EXPECT_EQ(req.path, "/index.html");
     EXPECT_EQ(req.version, "HTTP/1.1");
 
-    // EXPECT_EQ(req.headers["Host"], "localhost");
-    // EXPECT_EQ(req.headers["User-Agent"], "TestClient");
+    EXPECT_EQ(req.headers["Host"][0], "localhost");
+    EXPECT_EQ(req.headers["User-Agent"][0], "TestClient");
 }
 
 TEST(HttpParserTests, InvalidRequestLineFormat) {
@@ -148,7 +148,7 @@ TEST(HttpParserTests, InvalidRequestLineFormat) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE);
+    EXPECT_EQ(err, ParseError::INVALID_REQUEST_LINE_FORMAT);
 }
 
 TEST(HttpParserTests, InvalidMethod) {
@@ -167,7 +167,7 @@ TEST(HttpParserTests, InvalidMethod) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_METHOD);
+    EXPECT_EQ(err, ParseError::UNSUPPORTED_METHOD);
 }
 
 TEST(HttpParserTests, InvalidMethodFormat) {
@@ -187,7 +187,7 @@ TEST(HttpParserTests, InvalidMethodFormat) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_METHOD);
+    EXPECT_EQ(err, ParseError::REQUEST_METHOD_LOWERCASE);
 }
 
 TEST(HttpParserTests, InvalidVersion) {
@@ -206,7 +206,7 @@ TEST(HttpParserTests, InvalidVersion) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_VERSION);
+    EXPECT_EQ(err, ParseError::UNSUPPORTED_VERSION);
 }
 
 TEST(HttpParserTests, InvalidHeaderFormat) {
@@ -225,7 +225,7 @@ TEST(HttpParserTests, InvalidHeaderFormat) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::INVALID_HEADER_MISSING_COLON);
 }
 
 TEST(HttpParserTests, MissingHostHeaderHTTP11) {
@@ -241,7 +241,7 @@ TEST(HttpParserTests, MissingHostHeaderHTTP11) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::MISSING_HOST_HEADER);
 }
 
 TEST(HttpParserTests, EmptyHostHeader) {
@@ -257,7 +257,7 @@ TEST(HttpParserTests, EmptyHostHeader) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::MISSING_HOST_HEADER);
 }
 
 TEST(HttpParserTests, DuplicateHostHeaders) {
@@ -276,7 +276,7 @@ TEST(HttpParserTests, DuplicateHostHeaders) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::MISSING_HOST_HEADER);
 }
 
 TEST(HttpParserTests, InvalidContentLength) {
@@ -295,7 +295,7 @@ TEST(HttpParserTests, InvalidContentLength) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::CONTENT_LENGTH_NOT_NUMERIC);
 }
 
 TEST(HttpParserTests, ContentLengthTooShort) {
@@ -355,7 +355,7 @@ TEST(HttpParserTests, InvalidHeaderName) {
     EXPECT_EQ(result, ParseResult::PARSE_ERROR);
 
     ParseError err = parser.error();
-    EXPECT_EQ(err, ParseError::INVALID_HEADER);
+    EXPECT_EQ(err, ParseError::INVALID_HEADER_UNSUPPORTED_CHARACTER);
 }
 
 TEST(HttpParserTests, BodyParsing) {

@@ -177,6 +177,7 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
       }
     }
 
+    parser.reset();
     requests_handled++;
   }
 

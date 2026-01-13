@@ -308,10 +308,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
         HttpParser parser;
         std::string recvBuffer;
-
-        char buffer[kRecvBufferSize];
-
         while (true) {
+          char buffer[kRecvBufferSize];
           int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
           if (bytes <= 0) {
             if (bytes == 0)
@@ -337,6 +335,10 @@ void Server::start_http_redirect(const Port& redirect_port) {
           // remove consumed bytes
           recvBuffer.erase(0, recvBuffer.size() - view.size());
 
+          if (result == ParseResult::NEED_MORE_DATA) {
+            continue;
+          }
+
           if (result == ParseResult::PARSE_ERROR) {
             LOG_ERROR("Redirection Server: bad HTTP request from client [" +
                       std::to_string(client_fd) + "]");
@@ -355,6 +357,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
+            parser.reset();
 
             close(client_fd);
 
