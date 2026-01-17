@@ -72,7 +72,7 @@ void accept_loop(int listen_fd, std::atomic<bool>& running, Handler handler) {
   }
 }
 
-template<typename Option>
+template <typename Option>
 void set_socket_timeout_option(int fd, int seconds, Option option) {
   struct timeval timeout{};
   timeout.tv_sec = seconds;
@@ -306,36 +306,68 @@ void Server::start_http_redirect(const Port& redirect_port) {
         LOG_INFO("Accepted client [" + std::to_string(client_fd) +
                  "] on redirect server");
 
-        char buffer[kRecvBufferSize];
-        int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-        if (bytes <= 0) {
-          if (bytes == 0)
-            LOG_INFO("Redirection Server: Client [" +
-                     std::to_string(client_fd) + "] closed connection");
-          else if (errno == EAGAIN || errno == EWOULDBLOCK)
-            LOG_INFO("Redirection Server: Client [" +
-                     std::to_string(client_fd) +
-                     "] idle timeout reached, closing");
-          else
-            LOG_INFO("Redirection Server: Fatal: Client [" +
-                     std::to_string(client_fd) + "] recv error");
+        HttpParser parser;
+        std::string recvBuffer;
+        while (true) {
+          char buffer[kRecvBufferSize];
+          int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+          if (bytes <= 0) {
+            if (bytes == 0)
+              LOG_INFO("Redirection Server: Client [" +
+                       std::to_string(client_fd) + "] closed connection");
+            else if (errno == EAGAIN || errno == EWOULDBLOCK)
+              LOG_INFO("Redirection Server: Client [" +
+                       std::to_string(client_fd) +
+                       "] idle timeout reached, closing");
+            else
+              LOG_INFO("Redirection Server: Fatal: Client [" +
+                       std::to_string(client_fd) + "] recv error");
 
-          close(client_fd);
-          return;
+            close(client_fd);
+            return;
+          }
+
+          recvBuffer.append(buffer, bytes);
+
+          std::string_view view(recvBuffer);
+          ParseResult result = parser.parse(view);
+
+          // remove consumed bytes
+          recvBuffer.erase(0, recvBuffer.size() - view.size());
+
+          if (result == ParseResult::NEED_MORE_DATA) {
+            continue;
+          }
+
+          if (result == ParseResult::PARSE_ERROR) {
+            ParseError err = parser.error();
+            StatusCode status = parseErrorToStatusCode(err);
+            LOG_ERROR("Bad HTTP request from client [" +
+                      std::to_string(client_fd) + "] with parse error " +
+                      std::to_string(static_cast<int>(err)));
+            HttpResponse response = Responses::badRequest(status);
+            std::string payload = response.serialize();
+            send(client_fd, payload.c_str(), payload.size(), 0);
+            close(client_fd);
+            return;
+          }
+
+          if (result == ParseResult::REQUEST_COMPLETE) {
+            HttpRequest request = parser.takeRequest();
+
+            HttpResponse response = Responses::redirection(request, d_port);
+
+            std::string payload = response.serialize();
+            send(client_fd, payload.c_str(), payload.size(), 0);
+            parser.reset();
+
+            close(client_fd);
+
+            LOG_INFO("Client [" + std::to_string(client_fd) +
+                     "] redirected and disconnected");
+            return;
+          }
         }
-
-        std::string raw(buffer, bytes);
-        HttpRequest request;
-        HttpParser::parse(raw, request);
-
-        HttpResponse response = Responses::redirection(request, d_port);
-
-        std::string payload = response.serialize();
-        send(client_fd, payload.c_str(), payload.size(), 0);
-        close(client_fd);
-
-        LOG_INFO("Client [" + std::to_string(client_fd) +
-                 "] disconnected from redirect server");
       });
   LOG_INFO("Shutdown: HTTP -> HTTPS redirection stopped.");
 }

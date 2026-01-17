@@ -258,7 +258,7 @@ TEST(RouterTests, WildcardRouteSanitizesParentTraversal) {
     HttpResponse res = Router::instance().route(req);
 
     // THEN:
-    EXPECT_EQ(res.code, StatusCode::BadRequest);
+    EXPECT_EQ(res.code, StatusCode::Unauthorized);
 }
 
 TEST(RouterTests, WildcardDoesNotOverrideExactMatch) {

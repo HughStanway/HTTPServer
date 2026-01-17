@@ -50,4 +50,4 @@ def test_static_directory_change_file_path_is_not_allowed(
     response, body = _make_request("GET", "/static/../bad_file.txt")
 
     # THEN:
-    assert response.status == 400
+    assert response.status == 401

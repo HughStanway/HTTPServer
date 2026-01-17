@@ -29,7 +29,7 @@ void Router::addStaticDirectoryRoute(const std::string& urlBase, const std::stri
 
         // Sanitize 'bad' input
         if (relative.find("..") != std::string::npos)
-            return Responses::badRequest();
+            return Responses::badRequest(StatusCode::Unauthorized);
 
         std::string fullPath = directory + relative;
         return Responses::file(req, fullPath);

@@ -17,6 +17,7 @@
 [ ] Use this server as a backend for serving a simple file storage website (Like google drive)
 [ ] research man pages for sys calls used by server in order to make the socket setup better for deployment
 [ ] interative readme and create proper github release actions
+[ ] configuration file (nginx like) (allowed methods, ports, etc)
 
 Further server enhancements:
 
@@ -39,15 +40,15 @@ Further server enhancements:
 ⸻
 
 🟡 Phase 2 — HTTP correctness & security
-	[ ]	Proper HTTP request framing
+	[x]	Proper HTTP request framing
 	    •	Accumulate input until full headers are received (\r\n\r\n)
 	    •	Do not assume entire request arrives in a single recv()
-	[ ]	Enforce header and body size limits
+	[x]	Enforce header and body size limits
 	    •	Add configurable limits:
 	        •	Max header size (e.g. 8–16 KB)
 	        •	Max body size (e.g. 1 MB)
 	    •	Reject oversized requests early
-	[ ]	Strict handling of malformed requests
+	[x]	Strict handling of malformed requests
 	    •	Close connection on parse failure
 	    •	Ensure malformed input cannot trigger keep-alive reuse
 

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace HTTPServer {
 
@@ -10,15 +11,24 @@ enum class StatusCode {
     OK = 200,
     MovedPermanently = 301,
     BadRequest = 400,
+    Unauthorized = 401,
+    Forbidden = 403,
     NotFound = 404,
+    RequestTimeout = 408,
+    PayloadTooLarge = 413,
+    UnsupportedMediaType = 415,
+    RequestHeaderFieldsTooLarge = 431,
     InternalServerError = 500,
+    NotImplemented = 501,
+    BadGateway = 502,
+    ServiceUnavailable = 503,
 };
 
 struct HttpRequest {
     std::string method;
     std::string path;
     std::string version;
-    std::unordered_map<std::string, std::string> headers;
+    std::unordered_map<std::string, std::vector<std::string>> headers;
     std::string body;
     std::unordered_map<std::string, std::string> params;
 };

@@ -24,23 +24,26 @@ HttpResponse ok(const HttpRequest& req, const std::string& body, const std::stri
 }
 
 HttpResponse notFound(const HttpRequest& req) {
+    std::string body = generateErrorPage(StatusCode::NotFound);
     HttpResponse res;
     return res.setStatus(StatusCode::NotFound)
-              .addHeader("Content-Type", "text/plain")
+              .addHeader("Content-Type", "text/html")
               .addHeader("Connection", "close")
-              .setBody("404 Not Found: " + req.path);
+              .setBody(body);
 }
 
-HttpResponse badRequest() {
+HttpResponse badRequest(StatusCode code) {
+    std::string body = generateErrorPage(code);
     HttpResponse res;
-    return res.setStatus(StatusCode::BadRequest)
-              .addHeader("Content-Type", "text/plain")
+    return res.setStatus(code)
+              .addHeader("Content-Type", "text/html")
               .addHeader("Connection", "close")
-              .setBody("400 Bad Request");
+              .setBody(body);
 }
 
 HttpResponse redirection(const HttpRequest& req, const Port& port) {
-    std::string host = req.headers.count("Host") ? req.headers.at("Host") : "localhost";
+    auto host_header = get_last_header_value(req, "Host");
+    std::string host = host_header ? std::string(*host_header) : "localhost";
 
     auto colonPos = host.find(':');
     if (colonPos != std::string::npos) {
@@ -52,7 +55,7 @@ HttpResponse redirection(const HttpRequest& req, const Port& port) {
     HttpResponse res;
     return res.setStatus(StatusCode::MovedPermanently)
             .addHeader("Location", "https://" + host + portStr + req.path)
-            .setBody("Redirecting to HTTPS...");
+            .setBody("301 Moved Permanently");
 }
 
 HttpResponse file(const HttpRequest& req, const std::string& filepath) {

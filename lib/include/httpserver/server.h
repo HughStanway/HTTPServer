@@ -1,14 +1,14 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <memory>
 #include <thread>
 #include <vector>
-#include <memory>
 
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
@@ -16,9 +16,46 @@
 #include "httpserver/logger.h"
 #include "httpserver/port.h"
 #include "httpserver/router.h"
-#include "httpserver/utils.h"
 #include "httpserver/thread_pool.h"
+#include "httpserver/utils.h"
 
+namespace {
+
+bool is_tls_handshake_attempt(const std::string& data) {
+  // Detects TLS 1.0, 1.1, 1.2, and 1.3 handshake attempts
+  // TLS record format: content_type (1 byte) + version (2 bytes) + length (2
+  // bytes) + payload All TLS versions use:
+  //   - Content type 0x16 (Handshake)
+  //   - Version bytes 0x03 0x0x (0x03 0x01 for TLS 1.0, 0x03 0x02 for TLS 1.1,
+  //   etc.)
+  //   - TLS 1.3 uses 0x03 0x03 in the record (legacy compatibility)
+
+  if (data.size() < 3) {
+    return false;
+  }
+
+  unsigned char byte0 = static_cast<unsigned char>(data[0]);
+  unsigned char byte1 = static_cast<unsigned char>(data[1]);
+  unsigned char byte2 = static_cast<unsigned char>(data[2]);
+
+  // Check for TLS handshake record (0x16)
+  if (byte0 != 0x16) {
+    return false;
+  }
+
+  // Check for TLS version (0x03 0x0x where second byte is 0x01-0x03)
+  // TLS 1.0: 0x03 0x01
+  // TLS 1.1: 0x03 0x02
+  // TLS 1.2: 0x03 0x03
+  // TLS 1.3: 0x03 0x03 (uses legacy version in record)
+  if (byte1 == 0x03 && byte2 >= 0x01 && byte2 <= 0x03) {
+    return true;
+  }
+
+  return false;
+}
+
+}  // namespace
 
 namespace HTTPServer {
 
@@ -72,6 +109,8 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
   LOG_INFO("Client [" + std::to_string(client_fd) + "] connected" +
            (isTLS ? " via secure TLS" : ""));
 
+  HttpParser parser;
+  std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
   while (keepAlive && requests_handled < kMaxKeepAliveRequests) {
@@ -90,33 +129,58 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
       break;
     }
 
-    std::string raw(buffer, bytes);
-    HttpRequest request;
-    ParseError err = HttpParser::parse(raw, request);
-    HttpResponse response;
-    if (err != ParseError::NONE) {
-      LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
-                "]: " + request.method + " " + request.path);
-      response = Responses::badRequest();
-      keepAlive = false;
-    } else {
-      LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
-               "]: " + request.method + " " + request.path);
-      response = Router::instance().route(request);
-      keepAlive = requestWantsKeepAlive(request);
+    recvBuffer.append(buffer, bytes);
+
+    // Detect TLS handshake on non-HTTPS connection
+    if (!isTLS && is_tls_handshake_attempt(recvBuffer)) {
+      LOG_ERROR("Client [" + std::to_string(client_fd) +
+                "] attempted TLS handshake on non-HTTPS port");
+      close(client_fd);
+      LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
+      return;
     }
+
+    std::string_view view(recvBuffer);
+    ParseResult result = parser.parse(view);
+
+    // Remove consumed bytes
+    recvBuffer.erase(0, recvBuffer.size() - view.size());
+
+    if (result == ParseResult::NEED_MORE_DATA) {
+      continue;
+    }
+
+    if (result == ParseResult::PARSE_ERROR) {
+      ParseError err = parser.error();
+      StatusCode status = parseErrorToStatusCode(err);
+      LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
+                "] with parse error " + std::to_string(static_cast<int>(err)));
+      HttpResponse resp = Responses::badRequest(status);
+      auto payload = resp.serialize();
+      writeFunc(payload.c_str(), payload.size());
+      break;
+    }
+
+    // REQUEST_COMPLETE
+    HttpRequest request = parser.takeRequest();
+
+    LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
+             "]: " + request.method + " " + request.path);
+
+    HttpResponse response = Router::instance().route(request);
+    keepAlive = requestWantsKeepAlive(request);
 
     std::string payload = response.serialize();
     bytes = writeFunc(payload.c_str(), payload.size());
     if (bytes <= 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG_INFO("Client [" + std::to_string(client_fd) +
-                "] send timeout reached, closing");
+                 "] send timeout reached, closing");
       }
     }
 
+    parser.reset();
     requests_handled++;
-    if (!keepAlive) break;
   }
 
   if (isTLS && ssl) {
