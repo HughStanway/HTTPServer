@@ -475,6 +475,138 @@ TEST(HttpParserTests, TransferEncodingOverridesContentLength) {
     EXPECT_EQ(err, ParseError::NONE);
 }
 
+TEST(HttpParserTests, ChunkedBodyMultipleChunks) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer =
+        "POST / HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "5\r\n"
+        "hello\r\n"
+        "6\r\n"
+        " world\r\n"
+        "0\r\n"
+        "\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.body, "hello world");
+}
+
+TEST(HttpParserTests, ChunkedBodyNeedsMoreData) {
+    // GIVEN
+    HttpParser parser;
+    std::string part1 =
+        "POST / HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "5\r\nhel";
+    std::string_view view1(part1);
+
+    std::string part2 = "lo\r\n0\r\n\r\n";
+    std::string_view view2(part2);
+
+    // WHEN and THEN
+    ParseResult result1 = parser.parse(view1);
+    EXPECT_EQ(result1, ParseResult::NEED_MORE_DATA);
+
+    ParseError err1 = parser.error();
+    EXPECT_EQ(err1, ParseError::NONE);
+
+    ParseResult result2 = parser.parse(view2);
+    EXPECT_EQ(result2, ParseResult::REQUEST_COMPLETE);
+
+    ParseError err2 = parser.error();
+    EXPECT_EQ(err2, ParseError::NONE);
+
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.body, "hello");
+}
+
+TEST(HttpParserTests, ChunkedMissingFinalZeroChunk) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer =
+        "POST / HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "5\r\n"
+        "hello\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    EXPECT_EQ(result, ParseResult::NEED_MORE_DATA);
+
+    ParseError err = parser.error();
+    EXPECT_EQ(err, ParseError::NONE);
+}
+
+TEST(HttpParserTests, ChunkedWithExtensions) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer =
+        "POST / HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "5;ext=value\r\n"
+        "hello\r\n"
+        "0\r\n"
+        "\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.body, "hello");
+}
+
+TEST(HttpParserTests, ChunkedWithTrailers) {
+    // GIVEN
+    HttpParser parser;
+    std::string recvBuffer =
+        "POST / HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "5\r\n"
+        "hello\r\n"
+        "0\r\n"
+        "X-Trailer: value\r\n"
+        "\r\n";
+
+    std::string_view view(recvBuffer);
+
+    // WHEN
+    ParseResult result = parser.parse(view);
+
+    // THEN
+    ASSERT_EQ(result, ParseResult::REQUEST_COMPLETE);
+
+    HttpRequest req = parser.takeRequest();
+    EXPECT_EQ(req.body, "hello");
+}
+
 TEST(HttpParserTests, QueryStringSimple) {
     // GIVEN
     HttpParser parser;

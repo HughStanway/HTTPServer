@@ -102,6 +102,7 @@ void HttpParser::reset() {
   d_lineBuffer.clear();
   d_bodyBytesRemaining = 0;
   d_currentChunkSize = 0;
+  d_currentChunkRead = 0;
 }
 
 bool HttpParser::parseRequestLine(std::string_view& buffer) {
@@ -340,6 +341,8 @@ bool HttpParser::parseChunkSize(std::string_view& buffer) {
     return false;
   }
 
+  d_currentChunkRead = 0;
+
   if (d_currentChunkSize == 0) {
     d_chunkState = ChunkState::TRAILERS;
   } else {
@@ -349,10 +352,17 @@ bool HttpParser::parseChunkSize(std::string_view& buffer) {
 }
 
 bool HttpParser::parseChunkData(std::string_view& buffer) {
-  if (buffer.size() < d_currentChunkSize) return false;
+  size_t remaining = d_currentChunkSize - d_currentChunkRead;
+  size_t n = std::min(buffer.size(), remaining);
 
-  d_request.body.append(buffer.substr(0, d_currentChunkSize));
-  buffer.remove_prefix(d_currentChunkSize);
+  d_request.body.append(buffer.substr(0, n));
+  buffer.remove_prefix(n);
+  d_currentChunkRead += n;
+
+  if (d_currentChunkRead < d_currentChunkSize) {
+    return false;
+  }
+
   d_chunkState = ChunkState::DATA_CRLF;
   return true;
 }

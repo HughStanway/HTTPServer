@@ -63,6 +63,7 @@ class HttpParser {
   std::string d_lineBuffer;
   size_t d_bodyBytesRemaining = 0;
   size_t d_currentChunkSize = 0;
+  size_t d_currentChunkRead = 0;
 
   /**
    * Limits (DoS protection)
