@@ -75,7 +75,7 @@ Further server enhancements:
 ⸻
 
 🔒 Phase 5 — TLS & security polish
-	[ ]	Harden TLS configuration
+	[x]	Harden TLS configuration
 	    •	Disable legacy protocols (SSLv2, SSLv3, TLS 1.0/1.1)
 	    •	Consider restricted cipher suites
 	[ ]	Basic rate limiting
@@ -86,7 +86,16 @@ Further server enhancements:
 
 ⸻
 
-🧪 Phase 6 — Testing & robustness
+🔒 Phase 6 — Operational hardening
+	•	Graceful reload
+	•	Hot TLS cert reload
+	•	Access logging formats
+	•	Structured JSON logs
+	•	Reverse proxy support
+
+⸻
+
+🧪 Phase 7 — Testing & robustness
 	[ ]	Fuzz HTTP parser
 	    •	Use libFuzzer / AFL against HttpParser::parse
 	    •	Catch crashes and edge cases early
