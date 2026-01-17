@@ -11,8 +11,17 @@ enum class StatusCode {
     OK = 200,
     MovedPermanently = 301,
     BadRequest = 400,
+    Unauthorized = 401,
+    Forbidden = 403,
     NotFound = 404,
+    RequestTimeout = 408,
+    PayloadTooLarge = 413,
+    UnsupportedMediaType = 415,
+    RequestHeaderFieldsTooLarge = 431,
     InternalServerError = 500,
+    NotImplemented = 501,
+    BadGateway = 502,
+    ServiceUnavailable = 503,
 };
 
 struct HttpRequest {

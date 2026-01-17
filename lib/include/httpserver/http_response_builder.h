@@ -12,7 +12,7 @@ namespace Responses {
 
 HttpResponse ok(const HttpRequest&, const std::string&, const std::string& = "text/plain");
 HttpResponse notFound(const HttpRequest&);
-HttpResponse badRequest();
+HttpResponse badRequest(StatusCode);
 HttpResponse redirection(const HttpRequest&, const Port&);
 HttpResponse file(const HttpRequest&, const std::string&);
 

@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "http_parser.h"
 #include "http_object.h"
 
 #include <optional>
@@ -10,6 +11,9 @@
 namespace HTTPServer {
 
 std::string statusCodeToString(StatusCode);
+std::string statusCodeToNumericString(StatusCode);
+StatusCode parseErrorToStatusCode(ParseError);
+std::string generateErrorPage(StatusCode);
 bool requestWantsKeepAlive(const HttpRequest&);
 
 namespace Mime {

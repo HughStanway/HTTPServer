@@ -340,10 +340,12 @@ void Server::start_http_redirect(const Port& redirect_port) {
           }
 
           if (result == ParseResult::PARSE_ERROR) {
-            LOG_ERROR("Redirection Server: bad HTTP request from client [" +
-                      std::to_string(client_fd) + "]");
-
-            HttpResponse response = Responses::badRequest();
+            ParseError err = parser.error();
+            StatusCode status = parseErrorToStatusCode(err);
+            LOG_ERROR("Bad HTTP request from client [" +
+                      std::to_string(client_fd) + "] with parse error " +
+                      std::to_string(static_cast<int>(err)));
+            HttpResponse response = Responses::badRequest(status);
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
             close(client_fd);

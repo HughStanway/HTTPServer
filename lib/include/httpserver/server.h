@@ -151,10 +151,11 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
     }
 
     if (result == ParseResult::PARSE_ERROR) {
+      ParseError err = parser.error();
+      StatusCode status = parseErrorToStatusCode(err);
       LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
-                "]");
-      HttpResponse resp = Responses::badRequest(); // return parse error message in response here 
-                                                   // NEXT: look at HTTP response codes 4xx or 5xx etc
+                "] with parse error " + std::to_string(static_cast<int>(err)));
+      HttpResponse resp = Responses::badRequest(status);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
       break;
