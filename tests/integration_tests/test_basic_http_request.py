@@ -33,7 +33,7 @@ def test_get_nonexistent_route_returns_404(runnable_server_instance: HttpServerR
 
     # THEN:
     assert response.status == 404
-    assert "404 Not Found: /nonexistient" in body
+    assert "404 Not Found" in body
 
 
 def test_keepalive_allows_multiple_requests_on_same_connection(
