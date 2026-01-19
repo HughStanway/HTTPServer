@@ -7,13 +7,16 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
+#include "httpserver/connection_guard.h"
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
 #include "httpserver/http_response_builder.h"
 #include "httpserver/logger.h"
+#include "httpserver/periodic_idle_ip_cleanup.h"
 #include "httpserver/port.h"
 #include "httpserver/router.h"
 #include "httpserver/thread_pool.h"
@@ -79,6 +82,7 @@ class Server {
   static constexpr int kMaxKeepAliveRequests = 100;
   static constexpr size_t kMinThreads = 4;
   static constexpr size_t kMaxThreads = 32;
+  static constexpr size_t kMaxConnectionsPerIp = 10;
 
   const Port d_port;
   Port d_redirection_port;
@@ -91,10 +95,15 @@ class Server {
   std::string cert_path;
   std::string key_path;
   SSL_CTX* ssl_ctx{nullptr};
+  std::mutex d_connected_ips_mtx;
+  std::unordered_map<std::string, ConnectedIp> d_connected_ips;
+  std::unique_ptr<PerioidIdleIpCleanup> d_periodic_idle_ip_cleanup;
 
   template <typename Reader, typename Writer>
   void init_request_processor(int client_fd, Reader readFunc, Writer writeFunc,
                               bool isTLS = false, SSL* ssl = nullptr);
+  template <typename Address, typename Handler>
+  void accept_loop(int listen_fd, std::atomic<bool>& running, Handler handler);
   bool init_ssl_context();
   void cleanup_ssl_context();
   void dispatch_client(int client_fd);

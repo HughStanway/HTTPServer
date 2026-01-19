@@ -8,6 +8,7 @@ add_library(httpserver_lib
     src/http_response_builder.cpp
     src/router.cpp
     src/thread_pool.cpp
+    src/periodic_idle_ip_cleanup.cpp
 )
 
 find_package(OpenSSL REQUIRED)

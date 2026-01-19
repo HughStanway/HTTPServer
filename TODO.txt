@@ -8,7 +8,8 @@
 [x] IPv6
 [x] Thread pool - bounded, basic thread pool implementation with a single worker per connected client
 [x] Improve logging to include thread names for easier debugging
-[ ] Integration tests - internal server error and redirection server
+[ ] configuration file (nginx like) (allowed methods, ports, etc)
+[ ] Integration tests - internal server error, redirection server and periodic idle ip cleanup (need to have config file todo this one)
 [ ] json response - need a json Reponse:: type similar to file::
 [ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] Compile as a proper library not just a local library
@@ -17,7 +18,6 @@
 [ ] Use this server as a backend for serving a simple file storage website (Like google drive)
 [ ] research man pages for sys calls used by server in order to make the socket setup better for deployment
 [ ] interative readme and create proper github release actions
-[ ] configuration file (nginx like) (allowed methods, ports, etc)
 
 Further server enhancements:
 
