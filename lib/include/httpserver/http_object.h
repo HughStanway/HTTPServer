@@ -17,6 +17,7 @@ enum class StatusCode {
     RequestTimeout = 408,
     PayloadTooLarge = 413,
     UnsupportedMediaType = 415,
+    TooManyRequests = 429,
     RequestHeaderFieldsTooLarge = 431,
     InternalServerError = 500,
     NotImplemented = 501,

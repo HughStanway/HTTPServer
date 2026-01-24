@@ -83,6 +83,8 @@ class Server {
   static constexpr size_t kMinThreads = 4;
   static constexpr size_t kMaxThreads = 32;
   static constexpr size_t kMaxConnectionsPerIp = 10;
+  static constexpr double kMaxTokens = 10.0;
+  static constexpr double kRefillRate = 5.0;
 
   const Port d_port;
   Port d_redirection_port;
@@ -100,21 +102,54 @@ class Server {
   std::unique_ptr<PerioidIdleIpCleanup> d_periodic_idle_ip_cleanup;
 
   template <typename Reader, typename Writer>
-  void init_request_processor(int client_fd, Reader readFunc, Writer writeFunc,
+  void init_request_processor(int client_fd, const std::string& client_ip,
+                              Reader readFunc, Writer writeFunc,
                               bool isTLS = false, SSL* ssl = nullptr);
   template <typename Address, typename Handler>
   void accept_loop(int listen_fd, std::atomic<bool>& running, Handler handler);
   bool init_ssl_context();
   void cleanup_ssl_context();
   void dispatch_client(int client_fd);
-  void handle_client(SSL* ssl);
-  void handle_client(int client_fd);
+  void handle_client(SSL* ssl, const std::string& client_ip);
+  void handle_client(int client_fd, const std::string& client_ip);
   void start_http_redirect(const Port& redirection_port);
+  void refill_tokens(ConnectedIp& client_ip);
+  bool consume_token(ConnectedIp& client_ip);
+  bool allow_request_from_ip(const std::string& ip);
 };
 
+inline void Server::refill_tokens(ConnectedIp& client_ip) {
+  auto now = std::chrono::steady_clock::now();
+  std::chrono::duration<double> elapsed = now - client_ip.last_seen;
+
+  client_ip.tokens =
+      std::min(kMaxTokens, client_ip.tokens + elapsed.count() * kRefillRate);
+  client_ip.last_seen = now;
+}
+
+inline bool Server::consume_token(ConnectedIp& client_ip) {
+  if (client_ip.tokens < 1.0) {
+    return false;
+  }
+  client_ip.tokens -= 1.0;
+  return true;
+}
+
+inline bool Server::allow_request_from_ip(const std::string& ip) {
+  std::lock_guard lock(d_connected_ips_mtx);
+  auto& entry = d_connected_ips[ip];
+  refill_tokens(entry);
+
+  if (!consume_token(entry)) {
+    return false;
+  }
+  return true;
+}
+
 template <typename Reader, typename Writer>
-void Server::init_request_processor(int client_fd, Reader readFunc,
-                                    Writer writeFunc, bool isTLS, SSL* ssl) {
+void Server::init_request_processor(int client_fd, const std::string& client_ip,
+                                    Reader readFunc, Writer writeFunc,
+                                    bool isTLS, SSL* ssl) {
   LOG_INFO("Client [" + std::to_string(client_fd) + "] connected" +
            (isTLS ? " via secure TLS" : ""));
 
@@ -172,6 +207,15 @@ void Server::init_request_processor(int client_fd, Reader readFunc,
 
     // REQUEST_COMPLETE
     HttpRequest request = parser.takeRequest();
+
+    if (!allow_request_from_ip(client_ip)) {
+      LOG_WARN("Request rate limit exeeded for IP " + client_ip +
+               " - Rejecting request,");
+      HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
+      auto payload = resp.serialize();
+      writeFunc(payload.c_str(), payload.size());
+      break;
+    }
 
     LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
              "]: " + request.method + " " + request.path);

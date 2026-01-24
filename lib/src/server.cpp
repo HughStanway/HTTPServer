@@ -288,10 +288,10 @@ void Server::accept_loop(int listen_fd, std::atomic<bool>& running,
 }
 
 void Server::dispatch_client(int client_fd) {
-  std::string ip = extract_ip(client_fd);
+  std::string client_ip = extract_ip(client_fd);
   {
     std::lock_guard lock(d_connected_ips_mtx);
-    auto& entry = d_connected_ips[ip];
+    auto& entry = d_connected_ips[client_ip];
 
     if (entry.active >= kMaxConnectionsPerIp) {
       LOG_WARN("Connection from client [" + std::to_string(client_fd) +
@@ -301,10 +301,11 @@ void Server::dispatch_client(int client_fd) {
       return;
     }
   }
-  ConnectionGuard guard(client_fd, d_connected_ips_mtx, d_connected_ips[ip]);
+  ConnectionGuard guard(client_fd, d_connected_ips_mtx,
+                        d_connected_ips[client_ip]);
 
   if (!https_enabled) {
-    handle_client(client_fd);
+    handle_client(client_fd, client_ip);
     return;
   }
 
@@ -319,12 +320,12 @@ void Server::dispatch_client(int client_fd) {
     close(client_fd);
     return;
   }
-  handle_client(ssl);
+  handle_client(ssl, client_ip);
 }
 
-void Server::handle_client(int client_fd) {
+void Server::handle_client(int client_fd, const std::string& client_ip) {
   init_request_processor(
-      client_fd,
+      client_fd, client_ip,
       [client_fd](char* buf, size_t size) {
         return recv(client_fd, buf, size, 0);
       },
@@ -333,10 +334,10 @@ void Server::handle_client(int client_fd) {
       });
 }
 
-void Server::handle_client(SSL* ssl) {
+void Server::handle_client(SSL* ssl, const std::string& client_ip) {
   int client_fd = SSL_get_fd(ssl);
   init_request_processor(
-      client_fd,
+      client_fd, client_ip,
       [ssl](char* buf, size_t size) { return SSL_read(ssl, buf, size); },
       [ssl](const char* data, size_t size) {
         return SSL_write(ssl, data, size);

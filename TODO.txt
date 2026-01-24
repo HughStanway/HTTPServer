@@ -9,7 +9,8 @@
 [x] Thread pool - bounded, basic thread pool implementation with a single worker per connected client
 [x] Improve logging to include thread names for easier debugging
 [ ] configuration file (nginx like) (allowed methods, ports, etc)
-[ ] Integration tests - internal server error, redirection server and periodic idle ip cleanup (need to have config file todo this one)
+[ ] Integration tests - internal server error, redirection server, periodic idle
+    ip cleanup (probably need to have config file todo this one) and rate limiting
 [ ] json response - need a json Reponse:: type similar to file::
 [ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] Compile as a proper library not just a local library
@@ -78,10 +79,12 @@ Further server enhancements:
 	[x]	Harden TLS configuration
 	    •	Disable legacy protocols (SSLv2, SSLv3, TLS 1.0/1.1)
 	    •	Consider restricted cipher suites
-	[ ]	Basic rate limiting
+	[x]	Basic rate limiting
 	    •	Limit:
 	        •	Connection attempts per IP
 	        •	Requests per connection
+            •   Socket timeouts
+            •   Token bucket to enforce sustained request rate
 	        •	Prevent abuse and simple DoS attacks
 
 ⸻
