@@ -1,5 +1,6 @@
 #include "httpserver/server.h"
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -53,25 +54,6 @@ int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
   return fd;
 }
 
-template <typename Address, typename Handler>
-void accept_loop(int listen_fd, std::atomic<bool>& running, Handler handler) {
-  while (running) {
-    Address client_addr{};
-    socklen_t addrlen = sizeof(client_addr);
-
-    int client_fd =
-        accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr), &addrlen);
-
-    if (client_fd < 0) {
-      if (!running || errno == EBADF || errno == EINVAL) break;
-      LOG_ERROR_ERRNO("Incoming connection accept failed");
-      continue;
-    }
-
-    handler(client_fd);
-  }
-}
-
 template <typename Option>
 void set_socket_timeout_option(int fd, int seconds, Option option) {
   struct timeval timeout{};
@@ -90,6 +72,26 @@ void log_ssl_errors(const std::string& prefix) {
     ERR_error_string_n(err, buf, sizeof(buf));
     LOG_ERROR(prefix + ": " + buf);
   }
+}
+
+std::string extract_ip(int fd) {
+  sockaddr_storage addr{};
+  socklen_t len = sizeof(addr);
+
+  if (getpeername(fd, reinterpret_cast<sockaddr*>(&addr), &len) < 0)
+    return "unknown";
+
+  char buf[INET6_ADDRSTRLEN]{};
+
+  if (addr.ss_family == AF_INET) {
+    inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(&addr)->sin_addr, buf,
+              sizeof(buf));
+  } else {
+    inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(&addr)->sin6_addr, buf,
+              sizeof(buf));
+  }
+
+  return buf;
 }
 
 }  // namespace
@@ -118,6 +120,7 @@ void Server::stop() {
     close(redirection_server_fd);
   }
 
+  d_periodic_idle_ip_cleanup->stop();
   cleanup_ssl_context();
   d_thread_pool->stop();
 }
@@ -162,7 +165,7 @@ bool Server::init_ssl_context() {
   if (!SSL_CTX_check_private_key(ssl_ctx)) {
     LOG_ERROR("Startup: Fatal: Private key does not match certificate");
     return false;
-}
+  }
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_2_VERSION);
   SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
@@ -242,7 +245,11 @@ void Server::start() {
     }
   }
 
-  // 5. Allow connections
+  // 5. Start Idle IP periodic cleanup
+  d_periodic_idle_ip_cleanup = std::make_unique<PerioidIdleIpCleanup>(
+      d_connected_ips, d_connected_ips_mtx);
+
+  // 6. Allow connections
   d_running = true;
 
   LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
@@ -260,9 +267,45 @@ void Server::start() {
   LOG_INFO("Shutdown: Server main loop exited.");
 }
 
+template <typename Address, typename Handler>
+void Server::accept_loop(int listen_fd, std::atomic<bool>& running,
+                         Handler handler) {
+  while (running) {
+    Address client_addr{};
+    socklen_t addrlen = sizeof(client_addr);
+
+    int client_fd =
+        accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr), &addrlen);
+
+    if (client_fd < 0) {
+      if (!running || errno == EBADF || errno == EINVAL) break;
+      LOG_ERROR_ERRNO("Incoming connection accept failed");
+      continue;
+    }
+
+    handler(client_fd);
+  }
+}
+
 void Server::dispatch_client(int client_fd) {
+  std::string client_ip = extract_ip(client_fd);
+  {
+    std::lock_guard lock(d_connected_ips_mtx);
+    auto& entry = d_connected_ips[client_ip];
+
+    if (entry.active >= kMaxConnectionsPerIp) {
+      LOG_WARN("Connection from client [" + std::to_string(client_fd) +
+               "] exeeds maximum number of connections from IP address. "
+               "Closing client");
+      close(client_fd);
+      return;
+    }
+  }
+  ConnectionGuard guard(client_fd, d_connected_ips_mtx,
+                        d_connected_ips[client_ip]);
+
   if (!https_enabled) {
-    handle_client(client_fd);
+    handle_client(client_fd, client_ip);
     return;
   }
 
@@ -277,12 +320,12 @@ void Server::dispatch_client(int client_fd) {
     close(client_fd);
     return;
   }
-  handle_client(ssl);
+  handle_client(ssl, client_ip);
 }
 
-void Server::handle_client(int client_fd) {
+void Server::handle_client(int client_fd, const std::string& client_ip) {
   init_request_processor(
-      client_fd,
+      client_fd, client_ip,
       [client_fd](char* buf, size_t size) {
         return recv(client_fd, buf, size, 0);
       },
@@ -291,10 +334,10 @@ void Server::handle_client(int client_fd) {
       });
 }
 
-void Server::handle_client(SSL* ssl) {
+void Server::handle_client(SSL* ssl, const std::string& client_ip) {
   int client_fd = SSL_get_fd(ssl);
   init_request_processor(
-      client_fd,
+      client_fd, client_ip,
       [ssl](char* buf, size_t size) { return SSL_read(ssl, buf, size); },
       [ssl](const char* data, size_t size) {
         return SSL_write(ssl, data, size);
