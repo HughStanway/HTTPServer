@@ -4,7 +4,7 @@
 int main() {
     using namespace HTTPServer;
 
-    Server server(Port(443));
+    Server server("src/config.toml", Port(443));
     server.installSignalHandlers();
     server.enableHttps(".env/cert.pem", ".env/key.pem");
     server.enableHttpRedirection(Port(80));

@@ -101,8 +101,25 @@ namespace HTTPServer {
 Server::Server(Port port)
     : d_port(port),
       server_fd(-1),
-      d_redirection_port(Port(kDefaultHttpRedirectPort)),
-      redirection_server_fd(-1) {}
+      d_redirection_port(Port(Config::get().kDefaultHttpRedirectionPort)),
+      redirection_server_fd(-1) {
+  Config::initDefault();
+}
+
+Server::Server(const std::string& config_path, Port port)
+    : d_port(port),
+      server_fd(-1),
+      d_redirection_port(Port(Config::get().kDefaultHttpRedirectionPort)),
+      redirection_server_fd(-1) {
+  LOG_INFO("Startup: Loading server config info...");
+  try {
+    Config::initFromFile(config_path);
+  } catch (const std::runtime_error& err) {
+    LOG_WARN("Startup: Invalid config file - loading default config:\n  => " + std::string(err.what()));
+    Config::initDefault();
+  }
+  LOG_INFO("Startup: Successfully loaded server config.");
+}
 
 const Port& Server::port() const { return d_port; }
 
@@ -198,7 +215,7 @@ void Server::cleanup_ssl_context() {
 }
 
 void Server::start() {
-  LOG_INFO("Starting server on port " + d_port.toString() + " ...");
+  LOG_INFO("Startup: Starting server on port " + d_port.toString() + " ...");
 
   // 1. Set up HTTPS
   if (https_enabled) {
@@ -224,7 +241,8 @@ void Server::start() {
 
   // 3. Start thread pool
   size_t hw = static_cast<size_t>(std::thread::hardware_concurrency());
-  size_t thread_count = std::clamp(hw, kMinThreads, kMaxThreads);
+  size_t thread_count =
+      std::clamp(hw, Config::get().kMinThreads, Config::get().kMaxThreads);
   d_thread_pool = std::make_unique<ThreadPool>(thread_count);
   LOG_INFO("Thread pool started with " + std::to_string(thread_count) +
            " worker threads");
@@ -255,8 +273,10 @@ void Server::start() {
   LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
            std::to_string(server_fd) + "] ...");
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
-    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
-    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
+    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                              SO_RCVTIMEO);
+    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                              SO_SNDTIMEO);
 
     LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
     if (d_thread_pool->enqueue(
@@ -293,7 +313,7 @@ void Server::dispatch_client(int client_fd) {
     std::lock_guard lock(d_connected_ips_mtx);
     auto& entry = d_connected_ips[client_ip];
 
-    if (entry.active >= kMaxConnectionsPerIp) {
+    if (entry.active >= Config::get().kMaxConnectionsPerIp) {
       LOG_WARN("Connection from client [" + std::to_string(client_fd) +
                "] exeeds maximum number of connections from IP address. "
                "Closing client");
@@ -366,8 +386,10 @@ void Server::start_http_redirect(const Port& redirect_port) {
            std::to_string(redirection_server_fd) + "] ...");
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
-        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
-        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_RCVTIMEO);
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_SNDTIMEO);
 
         LOG_INFO("Accepted client [" + std::to_string(client_fd) +
                  "] on redirect server");
@@ -375,7 +397,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
         HttpParser parser;
         std::string recvBuffer;
         while (true) {
-          char buffer[kRecvBufferSize];
+          char buffer[Config::get().kRecvBufferSize];
           int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
           if (bytes <= 0) {
             if (bytes == 0)

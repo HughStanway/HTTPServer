@@ -1,5 +1,6 @@
 #include "httpserver/thread_pool.h"
 
+#include "httpserver/config.h"
 #include "httpserver/logger.h"
 
 namespace HTTPServer {
@@ -39,7 +40,7 @@ int ThreadPool::enqueue(std::function<void()> task) {
   {
     std::lock_guard<std::mutex> lock(d_mtx);
 
-    if (d_task_queue.size() >= kMaxQueueSize) {
+    if (d_task_queue.size() >= Config::get().kMaxQueueSize) {
       LOG_WARN("Thread pool queue limit reached - rejecting connection");
       return -1;
     }

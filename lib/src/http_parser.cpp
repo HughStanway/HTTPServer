@@ -4,16 +4,6 @@
 
 namespace {
 
-const std::unordered_set<std::string_view> kAllowedMethods = {
-    "GET",
-    "POST",
-};
-
-const std::unordered_set<std::string_view> kAllowedVersions = {
-    "HTTP/1.0",
-    "HTTP/1.1",
-};
-
 static bool iequals(std::string_view a, std::string_view b) {
   if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
@@ -176,12 +166,12 @@ bool HttpParser::validateRequestLine() {
     }
   }
 
-  if (!kAllowedMethods.contains(d_request.method)) {
+  if (!Config::get().kAllowedMethods.contains(d_request.method)) {
     d_error = ParseError::UNSUPPORTED_METHOD;
     return false;
   }
 
-  if (!kAllowedVersions.contains(d_request.version)) {
+  if (!Config::get().kAllowedVersions.contains(d_request.version)) {
     d_error = ParseError::UNSUPPORTED_VERSION;
     return false;
   }
@@ -197,7 +187,7 @@ bool HttpParser::parseHeaders(std::string_view& buffer) {
       return validateHeaders();
     }
 
-    if (d_lineBuffer.size() > kMaxHeaderBytes) {
+    if (d_lineBuffer.size() > Config::get().kMaxHeaderBytes) {
       d_error = ParseError::HEADER_TOO_LARGE;
       d_state = ParseState::ERROR;
       return false;
@@ -275,7 +265,7 @@ bool HttpParser::determineBodyFraming() {
 
   if (cl != d_request.headers.end()) {
     d_bodyBytesRemaining = std::strtoul(cl->second.back().c_str(), nullptr, 10);
-    if (d_bodyBytesRemaining > kMaxBodyBytes) {
+    if (d_bodyBytesRemaining > Config::get().kMaxBodyBytes) {
       d_error = ParseError::BODY_TOO_LARGE;
       d_state = ParseState::ERROR;
       return false;

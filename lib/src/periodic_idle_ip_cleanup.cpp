@@ -43,9 +43,11 @@ void PerioidIdleIpCleanup::run() {
 
   while (d_running) {
     LOG_INFO("Periodic idle IP cleanup sleeping for " +
-             std::to_string(kCleanupInterval.count()) + " minutes");
+             std::to_string(Config::get().kCleanupInterval.count()) +
+             " minutes");
     std::unique_lock lock(d_cv_mtx);
-    d_cv.wait_for(lock, kCleanupInterval, [this] { return !d_running.load(); });
+    d_cv.wait_for(lock, Config::get().kCleanupInterval,
+                  [this] { return !d_running.load(); });
 
     if (d_running) {
       cleanup_idle_ips();
@@ -58,7 +60,7 @@ void PerioidIdleIpCleanup::cleanup_idle_ips() {
 
   std::lock_guard lock(d_mtx);
   for (auto it = d_connected_ips.begin(); it != d_connected_ips.end();) {
-    if (it->second.active == 0 && now - it->second.last_seen > kIdleTimeout) {
+    if (it->second.active == 0 && now - it->second.last_seen > Config::get().kIdleTimeout) {
       LOG_INFO("Idle IP address " + it->first + " erased");
       it = d_connected_ips.erase(it);
     } else {

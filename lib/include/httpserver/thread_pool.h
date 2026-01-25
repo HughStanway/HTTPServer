@@ -24,8 +24,6 @@ class ThreadPool {
   int enqueue(std::function<void()> task);
 
  private:
-  static constexpr size_t kMaxQueueSize = 1024;
-
   std::vector<std::thread> d_workers;
   std::queue<std::function<void()>> d_task_queue;
   std::mutex d_mtx;
