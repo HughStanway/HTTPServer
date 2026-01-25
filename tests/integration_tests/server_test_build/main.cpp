@@ -19,13 +19,13 @@ static int getEnvInt(const char* envVar, const int fallback) {
 }
 
 int main() {
+    std::string config_file = getEnvStr("TEST_CONFIG_FILE", "use_defaults");
     std::string static_dir = getEnvStr("TEST_STATIC_DIR", "public/");
     const char* cert = getenv("TEST_HTTPS_CERT");
     const char* key  = getenv("TEST_HTTPS_KEY");
     int enable_https = getEnvInt("TEST_ENABLE_HTTPS", 0);
 
-    Port http_port = enable_https ? Port(8443) : Port(8080);
-    Server server(http_port);
+    Server server(config_file);
     server.installSignalHandlers();
 
     if (enable_https && cert && key) {

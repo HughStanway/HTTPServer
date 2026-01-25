@@ -1,6 +1,6 @@
 [ports]
-server_port = 443
-http_redirection_port = 80
+server_port = 8080
+http_redirection_port = 8081
 
 [idle-ip-cleanup]
 interval_minutes = 10

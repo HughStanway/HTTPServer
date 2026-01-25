@@ -4,10 +4,10 @@
 int main() {
     using namespace HTTPServer;
 
-    Server server("src/config.toml", Port(443));
+    Server server("src/config.toml");
     server.installSignalHandlers();
     server.enableHttps(".env/cert.pem", ".env/key.pem");
-    server.enableHttpRedirection(Port(80));
+    server.enableHttpRedirection();
 
     Router::instance().addRoute("GET", "/", [](const HttpRequest& req) {
         return Responses::file(req, "public/index.html");

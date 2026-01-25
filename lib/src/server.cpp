@@ -98,18 +98,14 @@ std::string extract_ip(int fd) {
 
 namespace HTTPServer {
 
-Server::Server(Port port)
-    : d_port(port),
-      server_fd(-1),
-      d_redirection_port(Port(Config::get().kDefaultHttpRedirectionPort)),
+Server::Server()
+    : server_fd(-1),
       redirection_server_fd(-1) {
-  Config::initDefault();
+  LOG_INFO("Startup: Using default server config");
 }
 
-Server::Server(const std::string& config_path, Port port)
-    : d_port(port),
-      server_fd(-1),
-      d_redirection_port(Port(Config::get().kDefaultHttpRedirectionPort)),
+Server::Server(const std::string& config_path)
+    : server_fd(-1),
       redirection_server_fd(-1) {
   LOG_INFO("Startup: Loading server config info...");
   try {
@@ -121,10 +117,10 @@ Server::Server(const std::string& config_path, Port port)
   LOG_INFO("Startup: Successfully loaded server config.");
 }
 
-const Port& Server::port() const { return d_port; }
+const Port& Server::port() const { return Config::get().kPort; }
 
 void Server::stop() {
-  LOG_INFO("Shutdown: Stopping server on port " + d_port.toString() + " ...");
+  LOG_INFO("Shutdown: Stopping server on port " + Config::get().kPort.toString() + " ...");
 
   if (!d_running) return;
   d_running = false;
@@ -156,9 +152,8 @@ void Server::enableHttps(const std::string& certFile,
   key_path = keyFile;
 }
 
-void Server::enableHttpRedirection(Port redirection_port) {
+void Server::enableHttpRedirection() {
   http_redirection_enabled = true;
-  d_redirection_port = redirection_port;
 }
 
 bool Server::init_ssl_context() {
@@ -215,7 +210,7 @@ void Server::cleanup_ssl_context() {
 }
 
 void Server::start() {
-  LOG_INFO("Startup: Starting server on port " + d_port.toString() + " ...");
+  LOG_INFO("Startup: Starting server on port " + Config::get().kPort.toString() + " ...");
 
   // 1. Set up HTTPS
   if (https_enabled) {
@@ -229,7 +224,7 @@ void Server::start() {
   sockaddr_in6 address{};
   address.sin6_family = AF_INET6;
   address.sin6_addr = in6addr_any;
-  address.sin6_port = d_port.toNetwork();
+  address.sin6_port = Config::get().kPort.toNetwork();
 
   server_fd = create_listening_socket(reinterpret_cast<sockaddr*>(&address),
                                       sizeof(address));
@@ -249,13 +244,13 @@ void Server::start() {
 
   // 4. Start HTTP -> HTTPS forwarding if enabled
   if (https_enabled && http_redirection_enabled) {
-    if (d_port == d_redirection_port) {
-      LOG_WARN("Startup: Redirection port [" + d_redirection_port.toString() +
-               "] cannot be the same as server port [" + d_port.toString() +
+    if (Config::get().kPort == Config::get().kRedirectionPort) {
+      LOG_WARN("Startup: Redirection port [" + Config::get().kRedirectionPort.toString() +
+               "] cannot be the same as server port [" + Config::get().kPort.toString() +
                "]: Failed to start HTTP redirection");
     } else {
       if (d_thread_pool->enqueue(
-              [this]() { start_http_redirect(d_redirection_port); }) < 0) {
+              [this]() { start_http_redirect(Config::get().kRedirectionPort); }) < 0) {
         LOG_WARN(
             "Startup: Thread pool queue limit reached - cannot start "
             "redirection server");
@@ -270,7 +265,7 @@ void Server::start() {
   // 6. Allow connections
   d_running = true;
 
-  LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
+  LOG_INFO("Server running on port " + Config::get().kPort.toString() + " with fd [" +
            std::to_string(server_fd) + "] ...");
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
@@ -443,7 +438,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
           if (result == ParseResult::REQUEST_COMPLETE) {
             HttpRequest request = parser.takeRequest();
 
-            HttpResponse response = Responses::redirection(request, d_port);
+            HttpResponse response = Responses::redirection(request, Config::get().kPort);
 
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);

@@ -179,6 +179,7 @@ def runnable_server_instance(
 ) -> Generator[HttpServerRunner]:
     env = os.environ.copy()
     env["TEST_ENABLE_HTTPS"] = "0"
+    env["TEST_CONFIG_FILE"] = "tests/integration_tests/server_test_build/config.toml"
     env["TEST_HTTPS_CERT"] = str(server_temp_dir["cert"])
     env["TEST_HTTPS_KEY"] = str(server_temp_dir["key"])
     env["TEST_STATIC_DIR"] = str(server_temp_dir["static_dir"])

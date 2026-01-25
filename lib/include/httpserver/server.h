@@ -65,8 +65,8 @@ namespace HTTPServer {
 
 class Server {
  public:
-  explicit Server(Port port = Port(443));
-  explicit Server(const std::string& config_path, Port port = Port(443));
+  explicit Server();
+  explicit Server(const std::string& config_path);
   Server(const Server&) = delete;
   Server& operator=(const Server&) = delete;
 
@@ -75,11 +75,9 @@ class Server {
   void installSignalHandlers();
   void stop();
   void enableHttps(const std::string& certFile, const std::string& keyFile);
-  void enableHttpRedirection(Port redirection_port = Port(80));
+  void enableHttpRedirection();
 
  private:
-  const Port d_port;
-  Port d_redirection_port;
   int server_fd{-1};
   int redirection_server_fd{-1};
   std::atomic<bool> d_running{false};

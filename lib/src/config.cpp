@@ -9,18 +9,20 @@
 namespace {
 
 template <typename T>
-std::optional<T> get_toml_value(const toml::table* table, const std::string& key);
+std::optional<T> get_toml_value(const toml::table* table,
+                                const std::string& key);
 
 template <>
-std::optional<int> get_toml_value<int>(const toml::table* table, const std::string& key) {
+std::optional<int> get_toml_value<int>(const toml::table* table,
+                                       const std::string& key) {
   if (!table) return std::nullopt;
-  if (auto v = table->get_as<int64_t>(key))
-    return static_cast<int>(v->get());
+  if (auto v = table->get_as<int64_t>(key)) return static_cast<int>(v->get());
   return std::nullopt;
 }
 
 template <>
-std::optional<size_t> get_toml_value<size_t>(const toml::table* table, const std::string& key) {
+std::optional<size_t> get_toml_value<size_t>(const toml::table* table,
+                                             const std::string& key) {
   if (!table) return std::nullopt;
   if (auto v = table->get_as<int64_t>(key))
     return static_cast<size_t>(v->get());
@@ -28,10 +30,10 @@ std::optional<size_t> get_toml_value<size_t>(const toml::table* table, const std
 }
 
 template <>
-std::optional<double> get_toml_value<double>(const toml::table* table, const std::string& key) {
+std::optional<double> get_toml_value<double>(const toml::table* table,
+                                             const std::string& key) {
   if (!table) return std::nullopt;
-  if (auto v = table->get_as<double>(key))
-    return v->get();
+  if (auto v = table->get_as<double>(key)) return v->get();
   return std::nullopt;
 }
 
@@ -47,6 +49,21 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   }
 
   /**
+   * Server Ports
+   */
+  if (auto cleanup = tbl["ports"].as_table()) {
+    if (auto v = get_toml_value<int>(cleanup, "server_port"))
+      cfg.kPort = HTTPServer::Port(v.value());
+
+    if (auto v = get_toml_value<int>(cleanup, "http_redirection_port"))
+      cfg.kRedirectionPort = HTTPServer::Port(v.value());
+  }
+
+  if (cfg.kPort.value() < 1 || cfg.kRedirectionPort.value() < 1 ||
+      cfg.kPort.value() > 65535 || cfg.kRedirectionPort.value() > 65535)
+    throw std::runtime_error("ports must be in the range [1, 65535]");
+
+  /**
    * Periodic Idle IP Cleanup
    */
   if (auto cleanup = tbl["idle-ip-cleanup"].as_table()) {
@@ -58,8 +75,7 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   }
 
   if (cfg.kCleanupInterval.count() <= 0)
-    throw std::runtime_error(
-        "idle-ip-cleanup::interval_minutes must be > 0");
+    throw std::runtime_error("idle-ip-cleanup::interval_minutes must be > 0");
 
   if (cfg.kIdleTimeout.count() < 0)
     throw std::runtime_error(
@@ -72,26 +88,15 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
     if (auto v = get_toml_value<int>(net, "client_timeout_seconds"))
       cfg.kClientTimeoutSec = v.value();
 
-    if (auto v = get_toml_value<int>(net, "default_http_redirection_port"))
-      cfg.kDefaultHttpRedirectionPort = v.value();
-
     if (auto v = get_toml_value<int>(net, "recv_buffer_size"))
       cfg.kRecvBufferSize = v.value();
   }
 
   if (cfg.kClientTimeoutSec <= 0)
-    throw std::runtime_error(
-        "network::client_timeout_seconds must be >= 0");
-
-  if (cfg.kDefaultHttpRedirectionPort < 1 ||
-      cfg.kDefaultHttpRedirectionPort > 65535)
-    throw std::runtime_error(
-        "network::default_http_redirection_port must be in the "
-        "range [1, 65535]");
+    throw std::runtime_error("network::client_timeout_seconds must be >= 0");
 
   if (cfg.kRecvBufferSize <= 0)
-    throw std::runtime_error(
-        "network::recv_buffer_size must be > 0");
+    throw std::runtime_error("network::recv_buffer_size must be > 0");
 
   /**
    * Threading
@@ -114,8 +119,7 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
         "valid");
 
   if (cfg.kMaxQueueSize <= 0)
-    throw std::runtime_error(
-        "threading::max_queue_size must be > 0");
+    throw std::runtime_error("threading::max_queue_size must be > 0");
 
   /**
    * Rate limiting
@@ -135,20 +139,17 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   }
 
   if (cfg.kMaxConnectionsPerIp <= 0)
-    throw std::runtime_error(
-        "rate-limits::max_connections_per_ip must be > 0");
+    throw std::runtime_error("rate-limits::max_connections_per_ip must be > 0");
 
   if (cfg.kMaxKeepAliveRequests <= 0)
     throw std::runtime_error(
         "rate-limits::max_keep_alive_requests must be > 0");
 
   if (cfg.kMaxTokens <= 0.0)
-    throw std::runtime_error(
-        "rate-limits::max_tokens must be > 0.0");
+    throw std::runtime_error("rate-limits::max_tokens must be > 0.0");
 
   if (cfg.kRefillRate <= 0.0)
-    throw std::runtime_error(
-        "rate-limits::refill_rate must be > 0.0");
+    throw std::runtime_error("rate-limits::refill_rate must be > 0.0");
 
   /**
    * HTTP Limits
@@ -163,25 +164,21 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
     if (auto arr = http->get("allowed_methods")->as_array()) {
       cfg.kAllowedMethods.clear();
       for (auto& v : *arr)
-        if (auto s = v.value<std::string>())
-          cfg.kAllowedMethods.insert(*s);
+        if (auto s = v.value<std::string>()) cfg.kAllowedMethods.insert(*s);
     }
 
     if (auto arr = http->get("allowed_versions")->as_array()) {
       cfg.kAllowedVersions.clear();
       for (auto& v : *arr)
-        if (auto s = v.value<std::string>())
-          cfg.kAllowedVersions.insert(*s);
+        if (auto s = v.value<std::string>()) cfg.kAllowedVersions.insert(*s);
     }
   }
 
   if (cfg.kMaxHeaderBytes <= 0)
-    throw std::runtime_error(
-        "http-config::max_header_bytes must be > 0");
+    throw std::runtime_error("http-config::max_header_bytes must be > 0");
 
   if (cfg.kMaxBodyBytes <= 0)
-    throw std::runtime_error(
-        "http-config::max_body_bytes must be > 0");
+    throw std::runtime_error("http-config::max_body_bytes must be > 0");
 
   return cfg;
 }

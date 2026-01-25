@@ -4,11 +4,18 @@
 #include <chrono>
 #include <string>
 #include <unordered_set>
-#include "logger.h"
+
+#include "port.h"
 
 namespace HTTPServer {
 
 struct ServerConfig {
+  /**
+   * Server Ports
+   */
+  Port kPort{443};
+  Port kRedirectionPort{80};
+
   /**
    * Periodic Idle IP Cleanup
    */
@@ -19,7 +26,6 @@ struct ServerConfig {
    * Networking
    */
   int kClientTimeoutSec = 5;
-  int kDefaultHttpRedirectionPort = 80;
   int kRecvBufferSize = 4096;
 
   /**
