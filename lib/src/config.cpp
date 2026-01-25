@@ -37,6 +37,20 @@ std::optional<double> get_toml_value<double>(const toml::table* table,
   return std::nullopt;
 }
 
+template <>
+std::optional<std::string> get_toml_value<std::string>(const toml::table* table,
+                                                       const std::string& key) {
+  if (!table) return std::nullopt;
+  if (auto v = table->get_as<std::string>(key)) return v->get();
+  return std::nullopt;
+}
+
+HTTPServer::LogLevel string_to_log_level(const std::string& level) {
+  if (level == "WARN") return HTTPServer::LogLevel::WARN;
+  if (level == "ERROR") return HTTPServer::LogLevel::ERROR;
+  return HTTPServer::LogLevel::INFO;
+}
+
 HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   HTTPServer::ServerConfig cfg{};  // defaults
 
@@ -179,6 +193,17 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
 
   if (cfg.kMaxBodyBytes <= 0)
     throw std::runtime_error("http-config::max_body_bytes must be > 0");
+
+  /**
+   * Logging Level
+   */
+  if (auto net = tbl["logging"].as_table()) {
+    if (auto v = get_toml_value<std::string>(net, "log_level")) {
+      HTTPServer::LogLevel level = string_to_log_level(v.value());
+      HTTPServer::Logger::instance().setLevel(level);
+      cfg.kLogLevel = level;
+    }
+  }
 
   return cfg;
 }

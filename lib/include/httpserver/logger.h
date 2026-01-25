@@ -7,9 +7,9 @@
 #include <mutex>
 #include <string>
 
-namespace HTTPServer {
+#include "log_level.h"
 
-enum class LogLevel { INFO, WARN, ERROR };
+namespace HTTPServer {
 
 class Logger {
   public:

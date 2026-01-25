@@ -6,6 +6,8 @@
 #include <unordered_set>
 
 #include "port.h"
+#include "log_level.h"
+#include "logger.h"
 
 namespace HTTPServer {
 
@@ -57,6 +59,11 @@ struct ServerConfig {
       "HTTP/1.0",
       "HTTP/1.1",
   };
+
+  /**
+   * Logging level
+   */
+  LogLevel kLogLevel{LogLevel::INFO};
 };
 
 class Config {
