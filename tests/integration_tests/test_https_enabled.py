@@ -15,7 +15,7 @@ def test_https_get_root_returns_ok(runnable_server_instance: HttpServerRunner):
     response, body, tls = _make_request(
         "GET",
         "/",
-        port=8443,
+        port=8080,
         use_https=True,
     )
 

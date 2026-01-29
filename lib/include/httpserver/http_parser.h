@@ -1,6 +1,7 @@
 #ifndef HTTP_PARSER_V2_H
 #define HTTP_PARSER_V2_H
 
+#include "config.h"
 #include "http_object.h"
 
 namespace HTTPServer {
@@ -64,12 +65,6 @@ class HttpParser {
   size_t d_bodyBytesRemaining = 0;
   size_t d_currentChunkSize = 0;
   size_t d_currentChunkRead = 0;
-
-  /**
-   * Limits (DoS protection)
-   */
-  size_t kMaxHeaderBytes = 16 * 1024;
-  size_t kMaxBodyBytes = 10 * 1024 * 1024;
 
   /**
    * Internal parsing methods

@@ -98,16 +98,29 @@ std::string extract_ip(int fd) {
 
 namespace HTTPServer {
 
-Server::Server(Port port)
-    : d_port(port),
-      server_fd(-1),
-      d_redirection_port(Port(kDefaultHttpRedirectPort)),
-      redirection_server_fd(-1) {}
+Server::Server()
+    : server_fd(-1),
+      redirection_server_fd(-1) {
+  LOG_INFO("Startup: Using default server config");
+}
 
-const Port& Server::port() const { return d_port; }
+Server::Server(const std::string& config_path)
+    : server_fd(-1),
+      redirection_server_fd(-1) {
+  LOG_INFO("Startup: Loading server config info...");
+  try {
+    Config::initFromFile(config_path);
+  } catch (const std::runtime_error& err) {
+    LOG_WARN("Startup: Invalid config file - loading default config:\n  => " + std::string(err.what()));
+    Config::initDefault();
+  }
+  LOG_INFO("Startup: Successfully loaded server config.");
+}
+
+const Port& Server::port() const { return Config::get().kPort; }
 
 void Server::stop() {
-  LOG_INFO("Shutdown: Stopping server on port " + d_port.toString() + " ...");
+  LOG_INFO("Shutdown: Stopping server on port " + Config::get().kPort.toString() + " ...");
 
   if (!d_running) return;
   d_running = false;
@@ -132,18 +145,6 @@ void Server::installSignalHandlers() {
   std::signal(SIGTERM, sig_handler);
 }
 
-void Server::enableHttps(const std::string& certFile,
-                         const std::string& keyFile) {
-  https_enabled = true;
-  cert_path = certFile;
-  key_path = keyFile;
-}
-
-void Server::enableHttpRedirection(Port redirection_port) {
-  http_redirection_enabled = true;
-  d_redirection_port = redirection_port;
-}
-
 bool Server::init_ssl_context() {
   SSL_load_error_strings();
   OpenSSL_add_ssl_algorithms();
@@ -154,9 +155,9 @@ bool Server::init_ssl_context() {
     return false;
   }
 
-  if (SSL_CTX_use_certificate_file(ssl_ctx, cert_path.c_str(),
+  if (SSL_CTX_use_certificate_file(ssl_ctx, Config::get().kCertFile.c_str(),
                                    SSL_FILETYPE_PEM) <= 0 ||
-      SSL_CTX_use_PrivateKey_file(ssl_ctx, key_path.c_str(),
+      SSL_CTX_use_PrivateKey_file(ssl_ctx, Config::get().kKeyFile.c_str(),
                                   SSL_FILETYPE_PEM) <= 0) {
     LOG_ERROR("Startup: Fatal: Failed to load certificate or key");
     return false;
@@ -198,10 +199,10 @@ void Server::cleanup_ssl_context() {
 }
 
 void Server::start() {
-  LOG_INFO("Starting server on port " + d_port.toString() + " ...");
+  LOG_INFO("Startup: Starting server on port " + Config::get().kPort.toString() + " ...");
 
   // 1. Set up HTTPS
-  if (https_enabled) {
+  if (Config::get().kEnableHttps) {
     if (!init_ssl_context()) {
       return;
     }
@@ -212,7 +213,7 @@ void Server::start() {
   sockaddr_in6 address{};
   address.sin6_family = AF_INET6;
   address.sin6_addr = in6addr_any;
-  address.sin6_port = d_port.toNetwork();
+  address.sin6_port = Config::get().kPort.toNetwork();
 
   server_fd = create_listening_socket(reinterpret_cast<sockaddr*>(&address),
                                       sizeof(address));
@@ -224,20 +225,21 @@ void Server::start() {
 
   // 3. Start thread pool
   size_t hw = static_cast<size_t>(std::thread::hardware_concurrency());
-  size_t thread_count = std::clamp(hw, kMinThreads, kMaxThreads);
+  size_t thread_count =
+      std::clamp(hw, Config::get().kMinThreads, Config::get().kMaxThreads);
   d_thread_pool = std::make_unique<ThreadPool>(thread_count);
   LOG_INFO("Thread pool started with " + std::to_string(thread_count) +
            " worker threads");
 
   // 4. Start HTTP -> HTTPS forwarding if enabled
-  if (https_enabled && http_redirection_enabled) {
-    if (d_port == d_redirection_port) {
-      LOG_WARN("Startup: Redirection port [" + d_redirection_port.toString() +
-               "] cannot be the same as server port [" + d_port.toString() +
+  if (Config::get().kEnableHttps && Config::get().kEnableHttpRedirection) {
+    if (Config::get().kPort == Config::get().kRedirectionPort) {
+      LOG_WARN("Startup: Redirection port [" + Config::get().kRedirectionPort.toString() +
+               "] cannot be the same as server port [" + Config::get().kPort.toString() +
                "]: Failed to start HTTP redirection");
     } else {
       if (d_thread_pool->enqueue(
-              [this]() { start_http_redirect(d_redirection_port); }) < 0) {
+              [this]() { start_http_redirect(Config::get().kRedirectionPort); }) < 0) {
         LOG_WARN(
             "Startup: Thread pool queue limit reached - cannot start "
             "redirection server");
@@ -252,11 +254,13 @@ void Server::start() {
   // 6. Allow connections
   d_running = true;
 
-  LOG_INFO("Server running on port " + d_port.toString() + " with fd [" +
+  LOG_INFO("Server running on port " + Config::get().kPort.toString() + " with fd [" +
            std::to_string(server_fd) + "] ...");
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
-    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
-    set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
+    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                              SO_RCVTIMEO);
+    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                              SO_SNDTIMEO);
 
     LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
     if (d_thread_pool->enqueue(
@@ -293,7 +297,7 @@ void Server::dispatch_client(int client_fd) {
     std::lock_guard lock(d_connected_ips_mtx);
     auto& entry = d_connected_ips[client_ip];
 
-    if (entry.active >= kMaxConnectionsPerIp) {
+    if (entry.active >= Config::get().kMaxConnectionsPerIp) {
       LOG_WARN("Connection from client [" + std::to_string(client_fd) +
                "] exeeds maximum number of connections from IP address. "
                "Closing client");
@@ -304,7 +308,7 @@ void Server::dispatch_client(int client_fd) {
   ConnectionGuard guard(client_fd, d_connected_ips_mtx,
                         d_connected_ips[client_ip]);
 
-  if (!https_enabled) {
+  if (!Config::get().kEnableHttps) {
     handle_client(client_fd, client_ip);
     return;
   }
@@ -366,8 +370,10 @@ void Server::start_http_redirect(const Port& redirect_port) {
            std::to_string(redirection_server_fd) + "] ...");
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
-        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_RCVTIMEO);
-        set_socket_timeout_option(client_fd, kClientTimeoutSec, SO_SNDTIMEO);
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_RCVTIMEO);
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_SNDTIMEO);
 
         LOG_INFO("Accepted client [" + std::to_string(client_fd) +
                  "] on redirect server");
@@ -375,7 +381,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
         HttpParser parser;
         std::string recvBuffer;
         while (true) {
-          char buffer[kRecvBufferSize];
+          char buffer[Config::get().kRecvBufferSize];
           int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
           if (bytes <= 0) {
             if (bytes == 0)
@@ -421,7 +427,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
           if (result == ParseResult::REQUEST_COMPLETE) {
             HttpRequest request = parser.takeRequest();
 
-            HttpResponse response = Responses::redirection(request, d_port);
+            HttpResponse response = Responses::redirection(request, Config::get().kPort);
 
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);

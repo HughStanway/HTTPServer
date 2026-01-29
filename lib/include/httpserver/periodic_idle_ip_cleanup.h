@@ -9,6 +9,7 @@
 #include <thread>
 #include <unordered_map>
 
+#include "config.h"
 #include "connection_guard.h"
 
 namespace HTTPServer {
@@ -26,9 +27,6 @@ class PerioidIdleIpCleanup {
   void stop();
 
  private:
-  static constexpr auto kCleanupInterval = std::chrono::minutes(10);
-  static constexpr auto kIdleTimeout = std::chrono::minutes(5);
-
   IpMap& d_connected_ips;
   std::mutex& d_mtx;
   std::atomic<bool> d_running{false};

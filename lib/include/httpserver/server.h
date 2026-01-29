@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "httpserver/config.h"
 #include "httpserver/connection_guard.h"
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
@@ -64,7 +65,8 @@ namespace HTTPServer {
 
 class Server {
  public:
-  explicit Server(Port port = Port(443));
+  explicit Server();
+  explicit Server(const std::string& config_path);
   Server(const Server&) = delete;
   Server& operator=(const Server&) = delete;
 
@@ -72,30 +74,12 @@ class Server {
   void start();
   void installSignalHandlers();
   void stop();
-  void enableHttps(const std::string& certFile, const std::string& keyFile);
-  void enableHttpRedirection(Port redirection_port = Port(80));
 
  private:
-  static constexpr int kClientTimeoutSec = 5;
-  static constexpr int kDefaultHttpRedirectPort = 8080;
-  static constexpr size_t kRecvBufferSize = 4096;
-  static constexpr int kMaxKeepAliveRequests = 100;
-  static constexpr size_t kMinThreads = 4;
-  static constexpr size_t kMaxThreads = 32;
-  static constexpr size_t kMaxConnectionsPerIp = 10;
-  static constexpr double kMaxTokens = 10.0;
-  static constexpr double kRefillRate = 5.0;
-
-  const Port d_port;
-  Port d_redirection_port;
   int server_fd{-1};
   int redirection_server_fd{-1};
   std::atomic<bool> d_running{false};
   std::unique_ptr<ThreadPool> d_thread_pool;
-  bool https_enabled{false};
-  bool http_redirection_enabled{false};
-  std::string cert_path;
-  std::string key_path;
   SSL_CTX* ssl_ctx{nullptr};
   std::mutex d_connected_ips_mtx;
   std::unordered_map<std::string, ConnectedIp> d_connected_ips;
@@ -123,7 +107,8 @@ inline void Server::refill_tokens(ConnectedIp& client_ip) {
   std::chrono::duration<double> elapsed = now - client_ip.last_seen;
 
   client_ip.tokens =
-      std::min(kMaxTokens, client_ip.tokens + elapsed.count() * kRefillRate);
+      std::min(Config::get().kMaxTokens,
+               client_ip.tokens + elapsed.count() * Config::get().kRefillRate);
   client_ip.last_seen = now;
 }
 
@@ -157,8 +142,8 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
   std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
-  while (keepAlive && requests_handled < kMaxKeepAliveRequests) {
-    char buffer[kRecvBufferSize];
+  while (keepAlive && requests_handled < Config::get().kMaxKeepAliveRequests) {
+    char buffer[Config::get().kRecvBufferSize];
     int bytes = readFunc(buffer, sizeof(buffer));
     if (bytes <= 0) {
       if (bytes == 0)

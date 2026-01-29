@@ -3,8 +3,9 @@ import os
 import subprocess
 import threading
 import time
+from config_util import ConfigBuilder
 from pathlib import Path
-from typing import Optional, Generator, Tuple
+from typing import Optional, Generator, Tuple, Any
 
 
 SERVER_BINARY = (
@@ -18,8 +19,9 @@ SERVER_BINARY = (
 
 
 class HttpServerRunner:
-    def __init__(self, env: dict[str, str]) -> None:
+    def __init__(self, env: dict[str, str], builder: ConfigBuilder) -> None:
         self._env = env
+        self._builder = builder
         self._process: Optional[subprocess.Popen[str]] = None
         self._reader_thread: Optional[threading.Thread] = None
 
@@ -31,8 +33,9 @@ class HttpServerRunner:
             return
 
         if with_https:
-            self._env["TEST_ENABLE_HTTPS"] = "1"
+            self._builder.set_value("https.enable_https", True)
 
+        self._builder.save()
         self._process = subprocess.Popen(
             [str(SERVER_BINARY)],
             stdout=subprocess.PIPE,
@@ -108,6 +111,9 @@ class HttpServerRunner:
         with self._output_lock:
             return "".join(self._output_lines)
 
+    def set_config_value(self, key: str, value: Any) -> None:
+        self._builder.set_value(key, value)
+
 
 def generate_test_certs(tmpdir: Path) -> Tuple[Path, Path]:
     """Generate isolated self-signed TLS certs per test run."""
@@ -139,8 +145,21 @@ def generate_test_certs(tmpdir: Path) -> Tuple[Path, Path]:
     return cert, key
 
 
+def generate_config_file(
+    tmpdir: Path, cert: Path, key: Path
+) -> Tuple[Path, ConfigBuilder]:
+    config = tmpdir / "config.toml"
+    builder = ConfigBuilder(config)
+    builder.set_value("ports.server_port", 8080)
+    builder.set_value("https.cert_file", str(cert))
+    builder.set_value("https.key_file", str(key))
+    return config, builder
+
+
 @pytest.fixture()
-def server_temp_dir(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
+def server_temp_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Tuple[dict[str, Path], ConfigBuilder]:
     """
     Creates a fully isolated filesystem layout for testing.
 
@@ -150,6 +169,7 @@ def server_temp_dir(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
           valid_file.html
         cert.pem
         key.pem
+        config.toml
     """
     base = tmp_path_factory.mktemp("httpserver")
 
@@ -165,25 +185,32 @@ def server_temp_dir(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     # Generate TLS certs
     cert, key = generate_test_certs(base)
 
-    return {
-        "base": base,
-        "static_dir": static_dir,
-        "cert": cert,
-        "key": key,
-    }
+    # Generate config.toml
+    config, builder = generate_config_file(base, cert, key)
+
+    return (
+        {
+            "base": base,
+            "static_dir": static_dir,
+            "cert": cert,
+            "key": key,
+            "config": config,
+        },
+        builder,
+    )
 
 
 @pytest.fixture()
 def runnable_server_instance(
-    server_temp_dir: dict[str, Path],
+    server_temp_dir: Tuple[dict[str, Path], ConfigBuilder],
 ) -> Generator[HttpServerRunner]:
-    env = os.environ.copy()
-    env["TEST_ENABLE_HTTPS"] = "0"
-    env["TEST_HTTPS_CERT"] = str(server_temp_dir["cert"])
-    env["TEST_HTTPS_KEY"] = str(server_temp_dir["key"])
-    env["TEST_STATIC_DIR"] = str(server_temp_dir["static_dir"])
+    paths, builder = server_temp_dir
 
-    runner = HttpServerRunner(env=env)
+    env = os.environ.copy()
+    env["TEST_CONFIG_FILE"] = str(paths["config"])
+    env["TEST_STATIC_DIR"] = str(paths["static_dir"])
+
+    runner = HttpServerRunner(env=env, builder=builder)
     yield runner
 
     # Ensure server is always stopped
