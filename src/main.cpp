@@ -6,8 +6,6 @@ int main() {
 
     Server server("src/config.toml");
     server.installSignalHandlers();
-    server.enableHttps(".env/cert.pem", ".env/key.pem");
-    server.enableHttpRedirection();
 
     Router::instance().addRoute("GET", "/", [](const HttpRequest& req) {
         return Responses::file(req, "public/index.html");

@@ -2,6 +2,12 @@
 server_port = 443
 http_redirection_port = 80
 
+[https]
+enable_https = true
+cert_file = ".env/cert.pem"
+key_file = ".env/key.pem"
+enable_http_redirection = true
+
 [idle-ip-cleanup]
 interval_minutes = 10
 idle_timeout_minutes = 0

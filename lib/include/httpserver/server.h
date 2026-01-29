@@ -74,18 +74,12 @@ class Server {
   void start();
   void installSignalHandlers();
   void stop();
-  void enableHttps(const std::string& certFile, const std::string& keyFile);
-  void enableHttpRedirection();
 
  private:
   int server_fd{-1};
   int redirection_server_fd{-1};
   std::atomic<bool> d_running{false};
   std::unique_ptr<ThreadPool> d_thread_pool;
-  bool https_enabled{false};
-  bool http_redirection_enabled{false};
-  std::string cert_path;
-  std::string key_path;
   SSL_CTX* ssl_ctx{nullptr};
   std::mutex d_connected_ips_mtx;
   std::unordered_map<std::string, ConnectedIp> d_connected_ips;

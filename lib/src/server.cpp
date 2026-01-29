@@ -145,17 +145,6 @@ void Server::installSignalHandlers() {
   std::signal(SIGTERM, sig_handler);
 }
 
-void Server::enableHttps(const std::string& certFile,
-                         const std::string& keyFile) {
-  https_enabled = true;
-  cert_path = certFile;
-  key_path = keyFile;
-}
-
-void Server::enableHttpRedirection() {
-  http_redirection_enabled = true;
-}
-
 bool Server::init_ssl_context() {
   SSL_load_error_strings();
   OpenSSL_add_ssl_algorithms();
@@ -166,9 +155,9 @@ bool Server::init_ssl_context() {
     return false;
   }
 
-  if (SSL_CTX_use_certificate_file(ssl_ctx, cert_path.c_str(),
+  if (SSL_CTX_use_certificate_file(ssl_ctx, Config::get().kCertFile.c_str(),
                                    SSL_FILETYPE_PEM) <= 0 ||
-      SSL_CTX_use_PrivateKey_file(ssl_ctx, key_path.c_str(),
+      SSL_CTX_use_PrivateKey_file(ssl_ctx, Config::get().kKeyFile.c_str(),
                                   SSL_FILETYPE_PEM) <= 0) {
     LOG_ERROR("Startup: Fatal: Failed to load certificate or key");
     return false;
@@ -213,7 +202,7 @@ void Server::start() {
   LOG_INFO("Startup: Starting server on port " + Config::get().kPort.toString() + " ...");
 
   // 1. Set up HTTPS
-  if (https_enabled) {
+  if (Config::get().kEnableHttps) {
     if (!init_ssl_context()) {
       return;
     }
@@ -243,7 +232,7 @@ void Server::start() {
            " worker threads");
 
   // 4. Start HTTP -> HTTPS forwarding if enabled
-  if (https_enabled && http_redirection_enabled) {
+  if (Config::get().kEnableHttps && Config::get().kEnableHttpRedirection) {
     if (Config::get().kPort == Config::get().kRedirectionPort) {
       LOG_WARN("Startup: Redirection port [" + Config::get().kRedirectionPort.toString() +
                "] cannot be the same as server port [" + Config::get().kPort.toString() +
@@ -319,7 +308,7 @@ void Server::dispatch_client(int client_fd) {
   ConnectionGuard guard(client_fd, d_connected_ips_mtx,
                         d_connected_ips[client_ip]);
 
-  if (!https_enabled) {
+  if (!Config::get().kEnableHttps) {
     handle_client(client_fd, client_ip);
     return;
   }

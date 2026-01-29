@@ -45,6 +45,14 @@ std::optional<std::string> get_toml_value<std::string>(const toml::table* table,
   return std::nullopt;
 }
 
+template <>
+std::optional<bool> get_toml_value<bool>(const toml::table* table,
+                                         const std::string& key) {
+  if (!table) return std::nullopt;
+  if (auto v = table->get_as<bool>(key)) return v->get();
+  return std::nullopt;
+}
+
 HTTPServer::LogLevel string_to_log_level(const std::string& level) {
   if (level == "WARN") return HTTPServer::LogLevel::WARN;
   if (level == "ERROR") return HTTPServer::LogLevel::ERROR;
@@ -76,6 +84,23 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   if (cfg.kPort.value() < 1 || cfg.kRedirectionPort.value() < 1 ||
       cfg.kPort.value() > 65535 || cfg.kRedirectionPort.value() > 65535)
     throw std::runtime_error("ports must be in the range [1, 65535]");
+
+  /**
+   * Https
+   */
+  if (auto https = tbl["https"].as_table()) {
+    if (auto v = get_toml_value<bool>(https, "enable_https"))
+      cfg.kEnableHttps = v.value();
+    
+    if (auto v = get_toml_value<std::string>(https, "cert_file"))
+      cfg.kCertFile = v.value();
+    
+    if (auto v = get_toml_value<std::string>(https, "key_file"))
+      cfg.kKeyFile = v.value();
+
+    if (auto v = get_toml_value<bool>(https, "enable_http_redirection"))
+      cfg.kEnableHttpRedirection = v.value();
+  }
 
   /**
    * Periodic Idle IP Cleanup

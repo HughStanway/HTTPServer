@@ -19,6 +19,14 @@ struct ServerConfig {
   Port kRedirectionPort{80};
 
   /**
+   * Https
+   */
+  bool kEnableHttps = false;
+  std::string kCertFile{};
+  std::string kKeyFile{};
+  bool kEnableHttpRedirection = false;
+
+  /**
    * Periodic Idle IP Cleanup
    */
   std::chrono::minutes kCleanupInterval{10};
