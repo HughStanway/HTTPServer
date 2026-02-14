@@ -15,8 +15,9 @@ namespace {
 HTTPServer::Server* g_activeServer = nullptr;
 
 void sig_handler(int signal) {
-  LOG_EVENT(HTTPServer::LogLevel::INFO, HTTPServer::LogEvent("shutdown_signal_received")
-                              .add("signal", signal));
+  LOG_EVENT(
+      HTTPServer::LogLevel::INFO,
+      HTTPServer::LogEvent("shutdown_signal_received").add("signal", signal));
   if (g_activeServer) {
     g_activeServer->stop();
   }
@@ -71,7 +72,8 @@ void log_ssl_errors(const std::string& prefix) {
   while ((err = ERR_get_error()) != 0) {
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
-    LOG_EVENT(HTTPServer::LogLevel::ERROR, HTTPServer::LogEvent("ssl_error")
+    LOG_EVENT(HTTPServer::LogLevel::ERROR,
+              HTTPServer::LogEvent("ssl_error")
                   .add("source", prefix)
                   .add("error_code", std::to_string(err))
                   .add("error_message", std::string(buf)));
@@ -102,24 +104,20 @@ std::string extract_ip(int fd) {
 
 namespace HTTPServer {
 
-Server::Server()
-    : server_fd(-1),
-      redirection_server_fd(-1) {
+Server::Server() : server_fd(-1), redirection_server_fd(-1) {
   LOG_EVENT(LogLevel::INFO, LogEvent("startup_default_config"));
 }
 
 Server::Server(const std::string& config_path)
-    : server_fd(-1),
-      redirection_server_fd(-1) {
+    : server_fd(-1), redirection_server_fd(-1) {
   LOG_EVENT(LogLevel::INFO,
             LogEvent("startup_loading_config").add("config_path", config_path));
   try {
     Config::initFromFile(config_path);
   } catch (const std::runtime_error& err) {
-    LOG_EVENT(LogLevel::WARN,
-              LogEvent("startup_invalid_config")
-                  .add("config_path", config_path)
-                  .add("error", std::string(err.what())));
+    LOG_EVENT(LogLevel::WARN, LogEvent("startup_invalid_config")
+                                  .add("config_path", config_path)
+                                  .add("error", std::string(err.what())));
     Config::initDefault();
   }
   LOG_EVENT(LogLevel::INFO,
@@ -129,9 +127,9 @@ Server::Server(const std::string& config_path)
 const Port& Server::port() const { return Config::get().kPort; }
 
 void Server::stop() {
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("server_stopping")
-                .add("port", Config::get().kPort.toString()));
+  LOG_EVENT(
+      LogLevel::INFO,
+      LogEvent("server_stopping").add("port", Config::get().kPort.toString()));
 
   if (!d_running) return;
   d_running = false;
@@ -170,18 +168,16 @@ bool Server::init_ssl_context() {
                                    SSL_FILETYPE_PEM) <= 0 ||
       SSL_CTX_use_PrivateKey_file(ssl_ctx, Config::get().kKeyFile.c_str(),
                                   SSL_FILETYPE_PEM) <= 0) {
-    LOG_EVENT(LogLevel::ERROR,
-              LogEvent("ssl_cert_or_key_load_failed")
-                  .add("cert_file", Config::get().kCertFile)
-                  .add("key_file", Config::get().kKeyFile));
+    LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_cert_or_key_load_failed")
+                                   .add("cert_file", Config::get().kCertFile)
+                                   .add("key_file", Config::get().kKeyFile));
     return false;
   }
 
   if (!SSL_CTX_check_private_key(ssl_ctx)) {
-    LOG_EVENT(LogLevel::ERROR,
-              LogEvent("ssl_private_key_mismatch")
-                  .add("cert_file", Config::get().kCertFile)
-                  .add("key_file", Config::get().kKeyFile));
+    LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_private_key_mismatch")
+                                   .add("cert_file", Config::get().kCertFile)
+                                   .add("key_file", Config::get().kKeyFile));
     return false;
   }
 
@@ -216,9 +212,9 @@ void Server::cleanup_ssl_context() {
 }
 
 void Server::start() {
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("server_starting")
-                .add("port", Config::get().kPort.toString()));
+  LOG_EVENT(
+      LogLevel::INFO,
+      LogEvent("server_starting").add("port", Config::get().kPort.toString()));
 
   // 1. Set up HTTPS
   if (Config::get().kEnableHttps) {
@@ -249,8 +245,9 @@ void Server::start() {
   size_t thread_count =
       std::clamp(hw, Config::get().kMinThreads, Config::get().kMaxThreads);
   d_thread_pool = std::make_unique<ThreadPool>(thread_count);
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("thread_pool_started").add("worker_threads", thread_count));
+  LOG_EVENT(
+      LogLevel::INFO,
+      LogEvent("thread_pool_started").add("worker_threads", thread_count));
 
   // 4. Start HTTP -> HTTPS forwarding if enabled
   if (Config::get().kEnableHttps && Config::get().kEnableHttpRedirection) {
@@ -261,8 +258,9 @@ void Server::start() {
                          Config::get().kRedirectionPort.toString())
                     .add("server_port", Config::get().kPort.toString()));
     } else {
-      if (d_thread_pool->enqueue(
-              [this]() { start_http_redirect(Config::get().kRedirectionPort); }) < 0) {
+      if (d_thread_pool->enqueue([this]() {
+            start_http_redirect(Config::get().kRedirectionPort);
+          }) < 0) {
         LOG_EVENT(LogLevel::WARN,
                   LogEvent("redirection_start_queue_limit_reached")
                       .add("redirection_port",
@@ -278,18 +276,17 @@ void Server::start() {
   // 6. Allow connections
   d_running = true;
 
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("server_running")
-                .add("port", Config::get().kPort.toString())
-                .add("fd", server_fd));
+  LOG_EVENT(LogLevel::INFO, LogEvent("server_running")
+                                .add("port", Config::get().kPort.toString())
+                                .add("fd", server_fd));
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                               SO_RCVTIMEO);
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                               SO_SNDTIMEO);
 
-    LOG_EVENT(LogLevel::INFO, LogEvent("connection_accepted")
-                                .add("client_fd", client_fd));
+    LOG_EVENT(LogLevel::INFO,
+              LogEvent("connection_accepted").add("client_fd", client_fd));
     if (d_thread_pool->enqueue(
             [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
       close(client_fd);
@@ -325,9 +322,10 @@ void Server::dispatch_client(int client_fd) {
     auto& entry = d_connected_ips[client_ip];
 
     if (entry.active >= Config::get().kMaxConnectionsPerIp) {
-      LOG_EVENT(LogLevel::WARN, LogEvent("max_number_connections_from_ip_exeeded")
-                                  .add("client_fd", client_fd)
-                                  .add("ip", client_ip));
+      LOG_EVENT(LogLevel::WARN,
+                LogEvent("max_number_connections_from_ip_exeeded")
+                    .add("client_fd", client_fd)
+                    .add("ip", client_ip));
       close(client_fd);
       return;
     }
@@ -345,8 +343,8 @@ void Server::dispatch_client(int client_fd) {
 
   if (SSL_accept(ssl) <= 0) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("tls_handshake_failed")
-                                .add("client_fd", client_fd)
-                                .add("ip", client_ip));
+                                   .add("client_fd", client_fd)
+                                   .add("ip", client_ip));
     log_ssl_errors("OpenSSL");
     SSL_free(ssl);
     close(client_fd);
@@ -378,8 +376,8 @@ void Server::handle_client(SSL* ssl, const std::string& client_ip) {
 }
 
 void Server::start_http_redirect(const Port& redirect_port) {
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("redirection_server_starting").add("port", redirect_port.toString()));
+  LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_starting")
+                                .add("port", redirect_port.toString()));
   sockaddr_in6 address{};
   address.sin6_family = AF_INET6;
   address.sin6_addr = in6addr_any;
@@ -389,16 +387,14 @@ void Server::start_http_redirect(const Port& redirect_port) {
       reinterpret_cast<sockaddr*>(&address), sizeof(address));
 
   if (redirection_server_fd < 0) {
-    LOG_EVENT(LogLevel::ERROR,
-              LogEvent("redirection_server_start_failed")
-                  .add("port", redirect_port.toString()));
+    LOG_EVENT(LogLevel::ERROR, LogEvent("redirection_server_start_failed")
+                                   .add("port", redirect_port.toString()));
     return;
   }
 
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("redirection_server_running")
-                .add("port", redirect_port.toString())
-                .add("fd", redirection_server_fd));
+  LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_running")
+                                .add("port", redirect_port.toString())
+                                .add("fd", redirection_server_fd));
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
         std::string client_ip = extract_ip(client_fd);
@@ -409,8 +405,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
                                   SO_SNDTIMEO);
 
         LOG_EVENT(LogLevel::INFO, LogEvent("connection_accepted")
-                                    .add("client_fd", client_fd)
-                                    .add("redirection_server", true));
+                                      .add("client_fd", client_fd)
+                                      .add("redirection_server", true));
 
         HttpParser parser;
         std::string recvBuffer;
@@ -420,19 +416,19 @@ void Server::start_http_redirect(const Port& redirect_port) {
           if (bytes <= 0) {
             if (bytes == 0)
               LOG_EVENT(LogLevel::INFO, LogEvent("client_closed_connection")
-                                          .add("client_fd", client_fd)
-                                          .add("ip", client_ip)
-                                          .add("redirection_server", true));
+                                            .add("client_fd", client_fd)
+                                            .add("ip", client_ip)
+                                            .add("redirection_server", true));
             else if (errno == EAGAIN || errno == EWOULDBLOCK)
               LOG_EVENT(LogLevel::INFO, LogEvent("client_idle_timeout")
-                                          .add("client_fd", client_fd)
-                                          .add("ip", client_ip)
-                                          .add("redirection_server", true));
+                                            .add("client_fd", client_fd)
+                                            .add("ip", client_ip)
+                                            .add("redirection_server", true));
             else
               LOG_EVENT(LogLevel::ERROR, LogEvent("recv_error")
-                                          .add("client_fd", client_fd)
-                                          .add("ip", client_ip)
-                                          .add("redirection_server", true));
+                                             .add("client_fd", client_fd)
+                                             .add("ip", client_ip)
+                                             .add("redirection_server", true));
 
             close(client_fd);
             return;
@@ -454,11 +450,11 @@ void Server::start_http_redirect(const Port& redirect_port) {
             ParseError err = parser.error();
             StatusCode status = parseErrorToStatusCode(err);
             LOG_EVENT(LogLevel::ERROR,
-                LogEvent("bad_request")
-                    .add("client_fd", client_fd)
-                    .add("ip", client_ip)
-                    .add("redirection_server", true)
-                    .add("parse_error", static_cast<int>(err)));
+                      LogEvent("bad_request")
+                          .add("client_fd", client_fd)
+                          .add("ip", client_ip)
+                          .add("redirection_server", true)
+                          .add("parse_error", static_cast<int>(err)));
             HttpResponse response = Responses::badRequest(status);
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
@@ -469,7 +465,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
           if (result == ParseResult::REQUEST_COMPLETE) {
             HttpRequest request = parser.takeRequest();
 
-            HttpResponse response = Responses::redirection(request, Config::get().kPort);
+            HttpResponse response =
+                Responses::redirection(request, Config::get().kPort);
 
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
@@ -478,16 +475,16 @@ void Server::start_http_redirect(const Port& redirect_port) {
             close(client_fd);
 
             LOG_EVENT(LogLevel::INFO, LogEvent("client_disconnected")
-                                .add("client_fd", client_fd)
-                                .add("ip", client_ip)
-                                .add("redirection_server", true)
-                                .add("client_redirected", true));
+                                          .add("client_fd", client_fd)
+                                          .add("ip", client_ip)
+                                          .add("redirection_server", true)
+                                          .add("client_redirected", true));
             return;
           }
         }
       });
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("redirection_server_stopped").add("port", redirect_port.toString()));
+  LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_stopped")
+                                .add("port", redirect_port.toString()));
 }
 
 }  // namespace HTTPServer

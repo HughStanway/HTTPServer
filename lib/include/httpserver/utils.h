@@ -1,12 +1,12 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "http_parser.h"
-#include "http_object.h"
-
 #include <optional>
 #include <string>
 #include <string_view>
+
+#include "http_object.h"
+#include "http_parser.h"
 
 namespace HTTPServer {
 
@@ -20,10 +20,11 @@ namespace Mime {
 
 std::string fromExtension(const std::string&);
 
-} // namespace Mime
+}  // namespace Mime
 
-std::optional<std::string_view> get_last_header_value(const HttpRequest& req, std::string_view name);
+std::optional<std::string_view> get_last_header_value(const HttpRequest& req,
+                                                      std::string_view name);
 
-} // namespace HTTPServer
+}  // namespace HTTPServer
 
 #endif

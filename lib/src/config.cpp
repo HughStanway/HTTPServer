@@ -91,10 +91,10 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   if (auto https = tbl["https"].as_table()) {
     if (auto v = get_toml_value<bool>(https, "enable_https"))
       cfg.kEnableHttps = v.value();
-    
+
     if (auto v = get_toml_value<std::string>(https, "cert_file"))
       cfg.kCertFile = v.value();
-    
+
     if (auto v = get_toml_value<std::string>(https, "key_file"))
       cfg.kKeyFile = v.value();
 

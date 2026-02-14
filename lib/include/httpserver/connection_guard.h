@@ -25,11 +25,10 @@ class ConnectionGuard {
       d_connection.active++;
       d_connection.last_seen = std::chrono::steady_clock::now();
     }
-    LOG_EVENT(
-        LogLevel::INFO,
-        LogEvent("connection_guard_enter")
-            .add("client_fd", d_client_fd)
-            .add("active_connections", d_connection.active));
+    LOG_EVENT(LogLevel::INFO,
+              LogEvent("connection_guard_enter")
+                  .add("client_fd", d_client_fd)
+                  .add("active_connections", d_connection.active));
   }
 
   ~ConnectionGuard() {
@@ -38,11 +37,10 @@ class ConnectionGuard {
       d_connection.active--;
       d_connection.last_seen = std::chrono::steady_clock::now();
     }
-    LOG_EVENT(
-        LogLevel::INFO,
-        LogEvent("connection_guard_exit")
-            .add("client_fd", d_client_fd)
-            .add("active_connections", d_connection.active));
+    LOG_EVENT(LogLevel::INFO,
+              LogEvent("connection_guard_exit")
+                  .add("client_fd", d_client_fd)
+                  .add("active_connections", d_connection.active));
   }
 
  private:

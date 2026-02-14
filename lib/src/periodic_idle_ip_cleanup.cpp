@@ -1,7 +1,7 @@
 #include "httpserver/periodic_idle_ip_cleanup.h"
 
-#include "httpserver/logger.h"
 #include "httpserver/log_event.h"
+#include "httpserver/logger.h"
 
 namespace HTTPServer {
 
@@ -45,8 +45,8 @@ void PerioidIdleIpCleanup::run() {
   while (d_running) {
     LOG_EVENT(LogLevel::INFO,
               LogEvent("idle_ip_cleanup_sleeping")
-                  .add("minutes",
-                       static_cast<int>(Config::get().kCleanupInterval.count())));
+                  .add("minutes", static_cast<int>(
+                                      Config::get().kCleanupInterval.count())));
     std::unique_lock lock(d_cv_mtx);
     d_cv.wait_for(lock, Config::get().kCleanupInterval,
                   [this] { return !d_running.load(); });
@@ -63,12 +63,12 @@ void PerioidIdleIpCleanup::cleanup_idle_ips() {
   std::lock_guard lock(d_mtx);
   size_t removed = 0;
   for (auto it = d_connected_ips.begin(); it != d_connected_ips.end();) {
-    if (it->second.active == 0 && now - it->second.last_seen > Config::get().kIdleTimeout) {
+    if (it->second.active == 0 &&
+        now - it->second.last_seen > Config::get().kIdleTimeout) {
       std::string ip = it->first;
       it = d_connected_ips.erase(it);
       removed++;
-      LOG_EVENT(LogLevel::INFO,
-                LogEvent("idle_ip_entry_erased").add("ip", ip));
+      LOG_EVENT(LogLevel::INFO, LogEvent("idle_ip_entry_erased").add("ip", ip));
     } else {
       ++it;
     }

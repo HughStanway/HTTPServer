@@ -1,8 +1,8 @@
 #include "httpserver/thread_pool.h"
 
 #include "httpserver/config.h"
-#include "httpserver/logger.h"
 #include "httpserver/log_event.h"
+#include "httpserver/logger.h"
 
 namespace HTTPServer {
 
