@@ -19,6 +19,7 @@
 [ ] Use this server as a backend for serving a simple file storage website (Like google drive)
 [ ] research man pages for sys calls used by server in order to make the socket setup better for deployment
 [ ] interative readme and create proper github release actions
+[ ] implement server metrics and distributed tracing
 
 Further server enhancements:
 
@@ -56,7 +57,7 @@ Further server enhancements:
 ⸻
 
 🟡 Phase 3 — Observability & diagnostics
-	[ ]	Log remote client address
+	[x]	Log remote client address
 	    •	Capture client IP/port at accept time
 	    •	Include in connection, error, and request logs
 	[ ]	Improve log structure

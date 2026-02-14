@@ -262,7 +262,8 @@ void Server::start() {
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                               SO_SNDTIMEO);
 
-    LOG_INFO("Accepted client [" + std::to_string(client_fd) + "]");
+    LOG_EVENT(LogLevel::INFO, LogEvent("connection_accepted")
+                                .add("client_fd", client_fd));
     if (d_thread_pool->enqueue(
             [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
       close(client_fd);
@@ -298,9 +299,9 @@ void Server::dispatch_client(int client_fd) {
     auto& entry = d_connected_ips[client_ip];
 
     if (entry.active >= Config::get().kMaxConnectionsPerIp) {
-      LOG_WARN("Connection from client [" + std::to_string(client_fd) +
-               "] exeeds maximum number of connections from IP address. "
-               "Closing client");
+      LOG_EVENT(LogLevel::WARN, LogEvent("max_number_connections_from_ip_exeeded")
+                                  .add("client_fd", client_fd)
+                                  .add("ip", client_ip));
       close(client_fd);
       return;
     }
@@ -317,8 +318,9 @@ void Server::dispatch_client(int client_fd) {
   SSL_set_fd(ssl, client_fd);
 
   if (SSL_accept(ssl) <= 0) {
-    LOG_ERROR("Client [" + std::to_string(client_fd) +
-              "] TLS handshake failed");
+    LOG_EVENT(LogLevel::ERROR, LogEvent("tls_handshake_failed")
+                                .add("client_fd", client_fd)
+                                .add("ip", client_ip));
     log_ssl_errors("OpenSSL");
     SSL_free(ssl);
     close(client_fd);
@@ -370,13 +372,16 @@ void Server::start_http_redirect(const Port& redirect_port) {
            std::to_string(redirection_server_fd) + "] ...");
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
+        std::string client_ip = extract_ip(client_fd);
+
         set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                                   SO_RCVTIMEO);
         set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                                   SO_SNDTIMEO);
 
-        LOG_INFO("Accepted client [" + std::to_string(client_fd) +
-                 "] on redirect server");
+        LOG_EVENT(LogLevel::INFO, LogEvent("connection_accepted")
+                                    .add("client_fd", client_fd)
+                                    .add("redirection_server", true));
 
         HttpParser parser;
         std::string recvBuffer;
@@ -385,15 +390,20 @@ void Server::start_http_redirect(const Port& redirect_port) {
           int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
           if (bytes <= 0) {
             if (bytes == 0)
-              LOG_INFO("Redirection Server: Client [" +
-                       std::to_string(client_fd) + "] closed connection");
+              LOG_EVENT(LogLevel::INFO, LogEvent("client_closed_connection")
+                                          .add("client_fd", client_fd)
+                                          .add("ip", client_ip)
+                                          .add("redirection_server", true));
             else if (errno == EAGAIN || errno == EWOULDBLOCK)
-              LOG_INFO("Redirection Server: Client [" +
-                       std::to_string(client_fd) +
-                       "] idle timeout reached, closing");
+              LOG_EVENT(LogLevel::INFO, LogEvent("client_idle_timeout")
+                                          .add("client_fd", client_fd)
+                                          .add("ip", client_ip)
+                                          .add("redirection_server", true));
             else
-              LOG_INFO("Redirection Server: Fatal: Client [" +
-                       std::to_string(client_fd) + "] recv error");
+              LOG_EVENT(LogLevel::ERROR, LogEvent("recv_error")
+                                          .add("client_fd", client_fd)
+                                          .add("ip", client_ip)
+                                          .add("redirection_server", true));
 
             close(client_fd);
             return;
@@ -414,9 +424,12 @@ void Server::start_http_redirect(const Port& redirect_port) {
           if (result == ParseResult::PARSE_ERROR) {
             ParseError err = parser.error();
             StatusCode status = parseErrorToStatusCode(err);
-            LOG_ERROR("Bad HTTP request from client [" +
-                      std::to_string(client_fd) + "] with parse error " +
-                      std::to_string(static_cast<int>(err)));
+            LOG_EVENT(LogLevel::ERROR,
+                LogEvent("bad_request")
+                    .add("client_fd", client_fd)
+                    .add("ip", client_ip)
+                    .add("redirection_server", true)
+                    .add("parse_error", static_cast<int>(err)));
             HttpResponse response = Responses::badRequest(status);
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
@@ -435,8 +448,11 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
             close(client_fd);
 
-            LOG_INFO("Client [" + std::to_string(client_fd) +
-                     "] redirected and disconnected");
+            LOG_EVENT(LogLevel::INFO, LogEvent("client_disconnected")
+                                .add("client_fd", client_fd)
+                                .add("ip", client_ip)
+                                .add("redirection_server", true)
+                                .add("client_redirected", true));
             return;
           }
         }

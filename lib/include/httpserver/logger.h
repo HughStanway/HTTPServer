@@ -36,6 +36,7 @@ class Logger {
 #define LOG_WARN(msg) HTTPServer::Logger::instance().log(msg, HTTPServer::LogLevel::WARN)
 #define LOG_ERROR(msg) HTTPServer::Logger::instance().log(msg, HTTPServer::LogLevel::ERROR)
 #define LOG_ERROR_ERRNO(msg) HTTPServer::Logger::instance().logErrno(msg, HTTPServer::LogLevel::ERROR)
+#define LOG_EVENT(level, event) HTTPServer::Logger::instance().log((event).str(), level)
 
 } // namespace HTTPServer
 

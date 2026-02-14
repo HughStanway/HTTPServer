@@ -50,7 +50,7 @@ def test_shutdown_waits_for_connected_clients_to_disconnect_gracefully(
         s.close()
         raise AssertionError(f"Failed to connect client socket to test server: {e}")
 
-    assert runnable_server_instance.wait_for_output("Accepted client")
+    assert runnable_server_instance.wait_for_output("event=connection_accepted")
 
     # Send a simple request and keep the connection open
     req = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: keep-alive\r\n\r\n"
@@ -80,7 +80,7 @@ def test_shutdown_waits_for_connected_clients_to_disconnect_gracefully(
     assert runnable_server_instance.exit_code() == 0
 
     log_output = runnable_server_instance.get_output()
-    assert "idle timeout reached, closing" in log_output
+    assert "event=client_idle_timeout" in log_output
     assert "Shutdown: All client threads finished." in log_output
     assert "Shutdown: Server main loop exited." in log_output
     assert "Server exited cleanly" in log_output
@@ -104,12 +104,12 @@ def test_server_disconnects_client_after_recv_timeout(
     assert runnable_server_instance.is_alive()
 
     s = socket.create_connection(("127.0.0.1", 8080), timeout=2)
-    assert runnable_server_instance.wait_for_output("Accepted client")
+    assert runnable_server_instance.wait_for_output("event=connected")
 
     # WHEN:
     time.sleep(6)
 
     # THEN:
     log_output = runnable_server_instance.get_output()
-    assert "idle timeout reached, closing" in log_output
-    assert "disconnected" in log_output
+    assert "event=client_idle_timeout" in log_output
+    assert "event=client_disconnected" in log_output

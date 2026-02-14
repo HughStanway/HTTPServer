@@ -41,7 +41,7 @@ def test_http_fails_with_https_enabled_and_no_redirection(
             _,
         ) = _make_request("GET", "/", port=8080)
 
-    assert "TLS handshake failed" in runnable_server_instance.get_output()
+    assert "event=tls_handshake_failed" in runnable_server_instance.get_output()
 
 
 def test_https_request_fails_with_https_disabled(
