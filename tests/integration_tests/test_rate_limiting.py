@@ -18,6 +18,8 @@ def test_connection_guard_tracks_client_lifecycle(
      
     # THEN
     log_output = runnable_server_instance.get_output()
-    assert "entered connection guard. Currently 1 active connections" in log_output
-    assert "exited connection guard. Currently 0 active connections" in log_output
+    assert "event=connection_guard_enter" in log_output
+    assert "active_connections=1" in log_output
+    assert "event=connection_guard_exit" in log_output
+    assert "active_connections=0" in log_output
     

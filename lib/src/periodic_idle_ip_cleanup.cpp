@@ -1,6 +1,7 @@
 #include "httpserver/periodic_idle_ip_cleanup.h"
 
 #include "httpserver/logger.h"
+#include "httpserver/log_event.h"
 
 namespace HTTPServer {
 
@@ -29,7 +30,7 @@ void PerioidIdleIpCleanup::stop() {
   if (d_thread.joinable()) {
     d_thread.join();
   }
-  LOG_INFO("Shutdown: Periodic idle IP cleanup thread stopped.");
+  LOG_EVENT(LogLevel::INFO, LogEvent("idle_ip_cleanup_thread_stopped"));
 }
 
 void PerioidIdleIpCleanup::run() {
@@ -39,12 +40,13 @@ void PerioidIdleIpCleanup::run() {
 #elif defined(__linux__)
   pthread_setname_np(pthread_self(), name.c_str());
 #endif
-  LOG_INFO("Periodic idle IP cleanup thread started");
+  LOG_EVENT(LogLevel::INFO, LogEvent("idle_ip_cleanup_thread_started"));
 
   while (d_running) {
-    LOG_INFO("Periodic idle IP cleanup sleeping for " +
-             std::to_string(Config::get().kCleanupInterval.count()) +
-             " minutes");
+    LOG_EVENT(LogLevel::INFO,
+              LogEvent("idle_ip_cleanup_sleeping")
+                  .add("minutes",
+                       static_cast<int>(Config::get().kCleanupInterval.count())));
     std::unique_lock lock(d_cv_mtx);
     d_cv.wait_for(lock, Config::get().kCleanupInterval,
                   [this] { return !d_running.load(); });
@@ -59,15 +61,20 @@ void PerioidIdleIpCleanup::cleanup_idle_ips() {
   const auto now = std::chrono::steady_clock::now();
 
   std::lock_guard lock(d_mtx);
+  size_t removed = 0;
   for (auto it = d_connected_ips.begin(); it != d_connected_ips.end();) {
     if (it->second.active == 0 && now - it->second.last_seen > Config::get().kIdleTimeout) {
-      LOG_INFO("Idle IP address " + it->first + " erased");
+      std::string ip = it->first;
       it = d_connected_ips.erase(it);
+      removed++;
+      LOG_EVENT(LogLevel::INFO,
+                LogEvent("idle_ip_entry_erased").add("ip", ip));
     } else {
       ++it;
     }
   }
-  LOG_INFO("Periodic idle IP cleanup finished processing.");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("idle_ip_cleanup_finished").add("removed", removed));
 }
 
 }  // namespace HTTPServer

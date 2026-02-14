@@ -14,8 +14,9 @@ namespace {
 
 HTTPServer::Server* g_activeServer = nullptr;
 
-void sig_handler(int) {
-  LOG_INFO("SIGINT or SIGTERM received, shutting down ...");
+void sig_handler(int signal) {
+  LOG_EVENT(HTTPServer::LogLevel::INFO, HTTPServer::LogEvent("shutdown_signal_received")
+                              .add("signal", signal));
   if (g_activeServer) {
     g_activeServer->stop();
   }
@@ -70,7 +71,10 @@ void log_ssl_errors(const std::string& prefix) {
   while ((err = ERR_get_error()) != 0) {
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
-    LOG_ERROR(prefix + ": " + buf);
+    LOG_EVENT(HTTPServer::LogLevel::ERROR, HTTPServer::LogEvent("ssl_error")
+                  .add("source", prefix)
+                  .add("error_code", std::to_string(err))
+                  .add("error_message", std::string(buf)));
   }
 }
 
@@ -101,26 +105,33 @@ namespace HTTPServer {
 Server::Server()
     : server_fd(-1),
       redirection_server_fd(-1) {
-  LOG_INFO("Startup: Using default server config");
+  LOG_EVENT(LogLevel::INFO, LogEvent("startup_default_config"));
 }
 
 Server::Server(const std::string& config_path)
     : server_fd(-1),
       redirection_server_fd(-1) {
-  LOG_INFO("Startup: Loading server config info...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("startup_loading_config").add("config_path", config_path));
   try {
     Config::initFromFile(config_path);
   } catch (const std::runtime_error& err) {
-    LOG_WARN("Startup: Invalid config file - loading default config:\n  => " + std::string(err.what()));
+    LOG_EVENT(LogLevel::WARN,
+              LogEvent("startup_invalid_config")
+                  .add("config_path", config_path)
+                  .add("error", std::string(err.what())));
     Config::initDefault();
   }
-  LOG_INFO("Startup: Successfully loaded server config.");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("startup_config_loaded").add("config_path", config_path));
 }
 
 const Port& Server::port() const { return Config::get().kPort; }
 
 void Server::stop() {
-  LOG_INFO("Shutdown: Stopping server on port " + Config::get().kPort.toString() + " ...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("server_stopping")
+                .add("port", Config::get().kPort.toString()));
 
   if (!d_running) return;
   d_running = false;
@@ -151,7 +162,7 @@ bool Server::init_ssl_context() {
 
   ssl_ctx = SSL_CTX_new(TLS_server_method());
   if (!ssl_ctx) {
-    LOG_ERROR("Startup: Fatal: Failed to create SSL context");
+    LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_context_create_failed"));
     return false;
   }
 
@@ -159,12 +170,18 @@ bool Server::init_ssl_context() {
                                    SSL_FILETYPE_PEM) <= 0 ||
       SSL_CTX_use_PrivateKey_file(ssl_ctx, Config::get().kKeyFile.c_str(),
                                   SSL_FILETYPE_PEM) <= 0) {
-    LOG_ERROR("Startup: Fatal: Failed to load certificate or key");
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("ssl_cert_or_key_load_failed")
+                  .add("cert_file", Config::get().kCertFile)
+                  .add("key_file", Config::get().kKeyFile));
     return false;
   }
 
   if (!SSL_CTX_check_private_key(ssl_ctx)) {
-    LOG_ERROR("Startup: Fatal: Private key does not match certificate");
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("ssl_private_key_mismatch")
+                  .add("cert_file", Config::get().kCertFile)
+                  .add("key_file", Config::get().kKeyFile));
     return false;
   }
 
@@ -199,14 +216,16 @@ void Server::cleanup_ssl_context() {
 }
 
 void Server::start() {
-  LOG_INFO("Startup: Starting server on port " + Config::get().kPort.toString() + " ...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("server_starting")
+                .add("port", Config::get().kPort.toString()));
 
   // 1. Set up HTTPS
   if (Config::get().kEnableHttps) {
     if (!init_ssl_context()) {
       return;
     }
-    LOG_INFO("Startup: HTTPS enabled");
+    LOG_EVENT(LogLevel::INFO, LogEvent("https_enabled"));
   }
 
   // 2. Start main server
@@ -219,7 +238,9 @@ void Server::start() {
                                       sizeof(address));
 
   if (server_fd < 0) {
-    LOG_ERROR("Startup: Fatal: Failed to create main server socket");
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("main_socket_create_failed")
+                  .add("port", Config::get().kPort.toString()));
     return;
   }
 
@@ -228,21 +249,24 @@ void Server::start() {
   size_t thread_count =
       std::clamp(hw, Config::get().kMinThreads, Config::get().kMaxThreads);
   d_thread_pool = std::make_unique<ThreadPool>(thread_count);
-  LOG_INFO("Thread pool started with " + std::to_string(thread_count) +
-           " worker threads");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("thread_pool_started").add("worker_threads", thread_count));
 
   // 4. Start HTTP -> HTTPS forwarding if enabled
   if (Config::get().kEnableHttps && Config::get().kEnableHttpRedirection) {
     if (Config::get().kPort == Config::get().kRedirectionPort) {
-      LOG_WARN("Startup: Redirection port [" + Config::get().kRedirectionPort.toString() +
-               "] cannot be the same as server port [" + Config::get().kPort.toString() +
-               "]: Failed to start HTTP redirection");
+      LOG_EVENT(LogLevel::WARN,
+                LogEvent("redirection_port_conflict")
+                    .add("redirection_port",
+                         Config::get().kRedirectionPort.toString())
+                    .add("server_port", Config::get().kPort.toString()));
     } else {
       if (d_thread_pool->enqueue(
               [this]() { start_http_redirect(Config::get().kRedirectionPort); }) < 0) {
-        LOG_WARN(
-            "Startup: Thread pool queue limit reached - cannot start "
-            "redirection server");
+        LOG_EVENT(LogLevel::WARN,
+                  LogEvent("redirection_start_queue_limit_reached")
+                      .add("redirection_port",
+                           Config::get().kRedirectionPort.toString()));
       }
     }
   }
@@ -254,8 +278,10 @@ void Server::start() {
   // 6. Allow connections
   d_running = true;
 
-  LOG_INFO("Server running on port " + Config::get().kPort.toString() + " with fd [" +
-           std::to_string(server_fd) + "] ...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("server_running")
+                .add("port", Config::get().kPort.toString())
+                .add("fd", server_fd));
   accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                               SO_RCVTIMEO);
@@ -269,7 +295,7 @@ void Server::start() {
       close(client_fd);
     }
   });
-  LOG_INFO("Shutdown: Server main loop exited.");
+  LOG_EVENT(LogLevel::INFO, LogEvent("server_main_loop_exited"));
 }
 
 template <typename Address, typename Handler>
@@ -352,8 +378,8 @@ void Server::handle_client(SSL* ssl, const std::string& client_ip) {
 }
 
 void Server::start_http_redirect(const Port& redirect_port) {
-  LOG_INFO("Starting HTTP redirection on port " + redirect_port.toString() +
-           " ...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("redirection_server_starting").add("port", redirect_port.toString()));
   sockaddr_in6 address{};
   address.sin6_family = AF_INET6;
   address.sin6_addr = in6addr_any;
@@ -363,13 +389,16 @@ void Server::start_http_redirect(const Port& redirect_port) {
       reinterpret_cast<sockaddr*>(&address), sizeof(address));
 
   if (redirection_server_fd < 0) {
-    LOG_ERROR("Redirection Server: Fatal: Failed to start redirect server");
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("redirection_server_start_failed")
+                  .add("port", redirect_port.toString()));
     return;
   }
 
-  LOG_INFO("HTTP -> HTTPS redirection enabled on port " +
-           redirect_port.toString() + " with fd [" +
-           std::to_string(redirection_server_fd) + "] ...");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("redirection_server_running")
+                .add("port", redirect_port.toString())
+                .add("fd", redirection_server_fd));
   accept_loop<sockaddr_in6>(
       redirection_server_fd, d_running, [this](int client_fd) {
         std::string client_ip = extract_ip(client_fd);
@@ -457,7 +486,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
           }
         }
       });
-  LOG_INFO("Shutdown: HTTP -> HTTPS redirection stopped.");
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("redirection_server_stopped").add("port", redirect_port.toString()));
 }
 
 }  // namespace HTTPServer

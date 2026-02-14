@@ -21,9 +21,9 @@ def test_startup_and_gracefull_shutdown(runnable_server_instance: HttpServerRunn
     assert not runnable_server_instance.is_alive()
 
     log_output = runnable_server_instance.get_output()
-    assert "SIGINT or SIGTERM received, shutting down ..." in log_output
-    assert "Shutdown: All client threads finished." in log_output
-    assert "Shutdown: Server main loop exited." in log_output
+    assert "event=shutdown_signal_received" in log_output
+    assert "event=all_client_threads_finished" in log_output
+    assert "event=server_main_loop_exited" in log_output
     assert "Server exited cleanly" in log_output
     assert runnable_server_instance.exit_code() == 0
 
@@ -81,8 +81,8 @@ def test_shutdown_waits_for_connected_clients_to_disconnect_gracefully(
 
     log_output = runnable_server_instance.get_output()
     assert "event=client_idle_timeout" in log_output
-    assert "Shutdown: All client threads finished." in log_output
-    assert "Shutdown: Server main loop exited." in log_output
+    assert "event=all_client_threads_finished" in log_output
+    assert "event=server_main_loop_exited" in log_output
     assert "Server exited cleanly" in log_output
 
     # Cleanup the client socket

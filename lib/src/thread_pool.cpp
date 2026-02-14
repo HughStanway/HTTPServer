@@ -2,6 +2,7 @@
 
 #include "httpserver/config.h"
 #include "httpserver/logger.h"
+#include "httpserver/log_event.h"
 
 namespace HTTPServer {
 
@@ -33,7 +34,7 @@ void ThreadPool::stop() {
       worker.join();
     }
   }
-  LOG_INFO("Shutdown: All client threads finished.");
+  LOG_EVENT(LogLevel::INFO, LogEvent("all_client_threads_finished"));
 }
 
 int ThreadPool::enqueue(std::function<void()> task) {
@@ -41,7 +42,7 @@ int ThreadPool::enqueue(std::function<void()> task) {
     std::lock_guard<std::mutex> lock(d_mtx);
 
     if (d_task_queue.size() >= Config::get().kMaxQueueSize) {
-      LOG_WARN("Thread pool queue limit reached - rejecting connection");
+      LOG_EVENT(LogLevel::WARN, LogEvent("thread_pool_queue_limit_reached"));
       return -1;
     }
     d_task_queue.push(std::move(task));
