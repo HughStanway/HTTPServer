@@ -54,7 +54,7 @@ class HttpServerRunner:
         )
         self._reader_thread.start()
 
-        if not self.wait_for_output("Server running", timeout):
+        if not self.wait_for_output("event=server_running", timeout):
             self.stop()
             raise RuntimeError(
                 f"Server did not start within {timeout} seconds.\n"

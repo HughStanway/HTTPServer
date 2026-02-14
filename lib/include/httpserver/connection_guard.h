@@ -4,6 +4,7 @@
 #include <chrono>
 #include <mutex>
 
+#include "log_event.h"
 #include "logger.h"
 
 namespace HTTPServer {
@@ -24,9 +25,11 @@ class ConnectionGuard {
       d_connection.active++;
       d_connection.last_seen = std::chrono::steady_clock::now();
     }
-    LOG_INFO("Client [" + std::to_string(d_client_fd) +
-             "] entered connection guard. Currently " +
-             std::to_string(d_connection.active) + " active connections");
+    LOG_EVENT(
+        LogLevel::INFO,
+        LogEvent("connection_guard_enter")
+            .add("client_fd", d_client_fd)
+            .add("active_connections", d_connection.active));
   }
 
   ~ConnectionGuard() {
@@ -35,9 +38,11 @@ class ConnectionGuard {
       d_connection.active--;
       d_connection.last_seen = std::chrono::steady_clock::now();
     }
-    LOG_INFO("Client [" + std::to_string(d_client_fd) +
-             "] exited connection guard. Currently " +
-             std::to_string(d_connection.active) + " active connections");
+    LOG_EVENT(
+        LogLevel::INFO,
+        LogEvent("connection_guard_exit")
+            .add("client_fd", d_client_fd)
+            .add("active_connections", d_connection.active));
   }
 
  private:

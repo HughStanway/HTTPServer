@@ -16,6 +16,7 @@
 #include "httpserver/http_object.h"
 #include "httpserver/http_parser.h"
 #include "httpserver/http_response_builder.h"
+#include "httpserver/log_event.h"
 #include "httpserver/logger.h"
 #include "httpserver/periodic_idle_ip_cleanup.h"
 #include "httpserver/port.h"
@@ -135,8 +136,10 @@ template <typename Reader, typename Writer>
 void Server::init_request_processor(int client_fd, const std::string& client_ip,
                                     Reader readFunc, Writer writeFunc,
                                     bool isTLS, SSL* ssl) {
-  LOG_INFO("Client [" + std::to_string(client_fd) + "] connected" +
-           (isTLS ? " via secure TLS" : ""));
+  LOG_EVENT(LogLevel::INFO, LogEvent("connected")
+                                .add("client_fd", client_fd)
+                                .add("ip", client_ip)
+                                .add("tls", isTLS));
 
   HttpParser parser;
   std::string recvBuffer;
@@ -147,14 +150,20 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
     int bytes = readFunc(buffer, sizeof(buffer));
     if (bytes <= 0) {
       if (bytes == 0)
-        LOG_INFO("Client [" + std::to_string(client_fd) +
-                 "] closed connection");
+        LOG_EVENT(LogLevel::INFO, LogEvent("client_closed_connection")
+                                      .add("client_fd", client_fd)
+                                      .add("ip", client_ip)
+                                      .add("tls", isTLS));
       else if (errno == EAGAIN || errno == EWOULDBLOCK)
-        LOG_INFO("Client [" + std::to_string(client_fd) +
-                 "] idle timeout reached, closing");
+        LOG_EVENT(LogLevel::INFO, LogEvent("client_idle_timeout")
+                                      .add("client_fd", client_fd)
+                                      .add("ip", client_ip)
+                                      .add("tls", isTLS));
       else
-        LOG_ERROR("Fatal: Client [" + std::to_string(client_fd) +
-                  "] recv error");
+        LOG_EVENT(LogLevel::ERROR, LogEvent("recv_error")
+                                       .add("client_fd", client_fd)
+                                       .add("ip", client_ip)
+                                       .add("tls", isTLS));
       break;
     }
 
@@ -162,11 +171,12 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
 
     // Detect TLS handshake on non-HTTPS connection
     if (!isTLS && is_tls_handshake_attempt(recvBuffer)) {
-      LOG_ERROR("Client [" + std::to_string(client_fd) +
-                "] attempted TLS handshake on non-HTTPS port");
-      close(client_fd);
-      LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected");
-      return;
+      LOG_EVENT(LogLevel::ERROR,
+                LogEvent("client_attempted_tls_handshake_on_non_https_port")
+                    .add("client_fd", client_fd)
+                    .add("ip", client_ip)
+                    .add("tls", isTLS));
+      break;
     }
 
     std::string_view view(recvBuffer);
@@ -182,8 +192,12 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
     if (result == ParseResult::PARSE_ERROR) {
       ParseError err = parser.error();
       StatusCode status = parseErrorToStatusCode(err);
-      LOG_ERROR("Bad HTTP request from client [" + std::to_string(client_fd) +
-                "] with parse error " + std::to_string(static_cast<int>(err)));
+      LOG_EVENT(LogLevel::ERROR,
+                LogEvent("bad_request")
+                    .add("client_fd", client_fd)
+                    .add("ip", client_ip)
+                    .add("tls", isTLS)
+                    .add("parse_error", static_cast<int>(err)));
       HttpResponse resp = Responses::badRequest(status);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
@@ -194,16 +208,22 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
     HttpRequest request = parser.takeRequest();
 
     if (!allow_request_from_ip(client_ip)) {
-      LOG_WARN("Request rate limit exeeded for IP " + client_ip +
-               " - Rejecting request,");
+      LOG_EVENT(LogLevel::WARN, LogEvent("rate_limit_exceeded")
+                                    .add("client_fd", client_fd)
+                                    .add("ip", client_ip)
+                                    .add("tls", isTLS));
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
       break;
     }
 
-    LOG_INFO("Parsed request from client [" + std::to_string(client_fd) +
-             "]: " + request.method + " " + request.path);
+    LOG_EVENT(LogLevel::INFO, LogEvent("http_request")
+                                  .add("client_fd", client_fd)
+                                  .add("ip", client_ip)
+                                  .add("tls", isTLS)
+                                  .add("method", request.method)
+                                  .add("path", request.path));
 
     HttpResponse response = Router::instance().route(request);
     keepAlive = requestWantsKeepAlive(request);
@@ -212,8 +232,10 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
     bytes = writeFunc(payload.c_str(), payload.size());
     if (bytes <= 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_INFO("Client [" + std::to_string(client_fd) +
-                 "] send timeout reached, closing");
+        LOG_EVENT(LogLevel::ERROR, LogEvent("client_send_timeout")
+                                       .add("client_fd", client_fd)
+                                       .add("ip", client_ip)
+                                       .add("tls", isTLS));
       }
     }
 
@@ -227,8 +249,10 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
   }
 
   close(client_fd);
-  LOG_INFO("Client [" + std::to_string(client_fd) + "] disconnected" +
-           (isTLS ? " (Secure TLS)" : ""));
+  LOG_EVENT(LogLevel::INFO, LogEvent("client_disconnected")
+                                .add("client_fd", client_fd)
+                                .add("ip", client_ip)
+                                .add("tls", isTLS));
 }
 
 }  // namespace HTTPServer
