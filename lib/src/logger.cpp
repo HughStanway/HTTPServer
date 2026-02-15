@@ -1,9 +1,10 @@
 #include "httpserver/logger.h"
 
-#include <pthread.h>
 #include <errno.h>
-#include <thread>
+#include <pthread.h>
 #include <string.h>
+
+#include <thread>
 
 #include "httpserver/config.h"
 
@@ -33,8 +34,8 @@ std::string Logger::levelToString(LogLevel level) {
 }
 
 std::string Logger::buildLogLine(const std::string& message, LogLevel level) {
-  return "[" + currentTime() + "] " + "[" + levelToString(level) + "] " +
-         "[" + currentThreadName() + "] " + message;
+  return "[" + currentTime() + "] " + "[" + levelToString(level) + "] " + "[" +
+         currentThreadName() + "] " + message;
 }
 
 std::string Logger::currentTime() {
