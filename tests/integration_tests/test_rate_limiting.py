@@ -1,6 +1,7 @@
+import pytest
+from http.client import HTTPConnection
 from conftest import HttpServerRunner
 from common import _make_request
-from concurrent.futures import ThreadPoolExecutor
 import threading
 
 def test_connection_guard_tracks_client_lifecycle(
@@ -24,6 +25,40 @@ def test_connection_guard_tracks_client_lifecycle(
     assert "active_connections=1" in log_output
     assert "event=connection_guard_exit" in log_output
     assert "active_connections=0" in log_output
+    
+def test_server_limits_number_of_requests_per_connection(
+    runnable_server_instance: HttpServerRunner
+):
+    """
+    Test verifies that the server enforces a limit on the number of requests
+    that can be made over a single connection, rejecting excess requests with
+    a 503 response.
+    """
+    # GIVEN
+    runnable_server_instance.set_config_value("rate-limits.max_keep_alive_requests", 1)
+    runnable_server_instance.start()
+    assert runnable_server_instance.is_alive()
+
+    # WHEN
+    conn = HTTPConnection("127.0.0.1", 8080, timeout=2)
+
+    conn.request("GET", "/")
+    r1 = conn.getresponse()
+    r1.read() 
+
+    conn.request("GET", "/")
+    r2 = conn.getresponse()
+    r2.read() 
+
+    conn.close()
+
+    # THEN
+    assert r1.status == 200
+    assert r2.status == 429
+
+    log_output = runnable_server_instance.get_output()
+    assert log_output.count("event=http_request") == 2
+    assert log_output.count("event=max_keep_alive_requests_exceeded") == 1
 
 def test_server_limits_concurrent_connections_per_ip(
     runnable_server_instance: HttpServerRunner

@@ -145,7 +145,7 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
   std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
-  while (keepAlive && requests_handled < Config::get().kMaxKeepAliveRequests) {
+  while (keepAlive) {
     char buffer[Config::get().kRecvBufferSize];
     int bytes = readFunc(buffer, sizeof(buffer));
     if (bytes <= 0) {
@@ -206,6 +206,25 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
 
     // REQUEST_COMPLETE
     HttpRequest request = parser.takeRequest();
+    LOG_EVENT(LogLevel::INFO, LogEvent("http_request")
+                                  .add("client_fd", client_fd)
+                                  .add("ip", client_ip)
+                                  .add("tls", isTLS)
+                                  .add("method", request.method)
+                                  .add("path", request.path));
+
+    if (requests_handled >= Config::get().kMaxKeepAliveRequests) {
+      LOG_EVENT(LogLevel::WARN, LogEvent("max_keep_alive_requests_exceeded")
+                                    .add("client_fd", client_fd)
+                                    .add("ip", client_ip)
+                                    .add("tls", isTLS)
+                                    .add("max_keep_alive_requests",
+                                         Config::get().kMaxKeepAliveRequests));
+      HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
+      auto payload = resp.serialize();
+      writeFunc(payload.c_str(), payload.size());
+      break;
+    }
 
     if (!allow_request_from_ip(client_ip)) {
       LOG_EVENT(LogLevel::WARN, LogEvent("rate_limit_exceeded")
@@ -217,13 +236,6 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
       writeFunc(payload.c_str(), payload.size());
       break;
     }
-
-    LOG_EVENT(LogLevel::INFO, LogEvent("http_request")
-                                  .add("client_fd", client_fd)
-                                  .add("ip", client_ip)
-                                  .add("tls", isTLS)
-                                  .add("method", request.method)
-                                  .add("path", request.path));
 
     HttpResponse response = Router::instance().route(request);
     keepAlive = requestWantsKeepAlive(request);
