@@ -12,7 +12,7 @@ PYTHON := python3.13
 VENV_PYTHON := $(VENV_DIR)/bin/python
 VENV_PIP := $(VENV_DIR)/bin/pip
 
-.PHONY: build run clean unit_test venv integration_test test format tidy help
+.PHONY: build run clean unit_test venv integration_test test format help
 
 build:
 	@echo "==> Configuring and Building..."
@@ -48,9 +48,6 @@ test: unit_test integration_test
 
 format:
 	clang-format -i $(shell find $(SRC_DIRS) -name '*.cpp' -o -name '*.hpp' -o -name '*.h')
-
-tidy:
-	clang-tidy -p build $(shell find src include -name '*.cpp')
 
 help:
 	@printf "Usage: make [target]\n\n"
