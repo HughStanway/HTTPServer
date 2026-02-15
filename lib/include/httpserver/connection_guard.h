@@ -23,7 +23,6 @@ class ConnectionGuard {
     {
       std::lock_guard lock(d_mtx);
       d_connection.active++;
-      d_connection.last_seen = std::chrono::steady_clock::now();
     }
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_enter")
@@ -35,7 +34,6 @@ class ConnectionGuard {
     {
       std::lock_guard lock(d_mtx);
       d_connection.active--;
-      d_connection.last_seen = std::chrono::steady_clock::now();
     }
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_exit")
