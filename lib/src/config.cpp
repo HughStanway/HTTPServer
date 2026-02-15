@@ -106,19 +106,19 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
    * Periodic Idle IP Cleanup
    */
   if (auto cleanup = tbl["idle-ip-cleanup"].as_table()) {
-    if (auto v = get_toml_value<int>(cleanup, "interval_minutes"))
-      cfg.kCleanupInterval = std::chrono::minutes(v.value());
+    if (auto v = get_toml_value<int>(cleanup, "interval_seconds"))
+      cfg.kCleanupInterval = std::chrono::seconds(v.value());
 
-    if (auto v = get_toml_value<int>(cleanup, "idle_timeout_minutes"))
-      cfg.kIdleTimeout = std::chrono::minutes(v.value());
+    if (auto v = get_toml_value<int>(cleanup, "idle_timeout_seconds"))
+      cfg.kIdleTimeout = std::chrono::seconds(v.value());
   }
 
   if (cfg.kCleanupInterval.count() <= 0)
-    throw std::runtime_error("idle-ip-cleanup::interval_minutes must be > 0");
+    throw std::runtime_error("idle-ip-cleanup::interval_seconds must be > 0");
 
   if (cfg.kIdleTimeout.count() < 0)
     throw std::runtime_error(
-        "idle-ip-cleanup::idle_timeout_minutes must be >= 0");
+        "idle-ip-cleanup::idle_timeout_seconds must be >= 0");
 
   /**
    * Networking

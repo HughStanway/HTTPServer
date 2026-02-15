@@ -45,7 +45,7 @@ void PerioidIdleIpCleanup::run() {
   while (d_running) {
     LOG_EVENT(LogLevel::INFO,
               LogEvent("idle_ip_cleanup_sleeping")
-                  .add("minutes", static_cast<int>(
+                  .add("seconds", static_cast<int>(
                                       Config::get().kCleanupInterval.count())));
     std::unique_lock lock(d_cv_mtx);
     d_cv.wait_for(lock, Config::get().kCleanupInterval,
