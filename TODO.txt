@@ -60,7 +60,7 @@ Further server enhancements:
 	[x]	Log remote client address
 	    •	Capture client IP/port at accept time
 	    •	Include in connection, error, and request logs
-	[ ]	Improve log structure
+	[x]	Improve log structure
 	    •	Standardize log fields (fd, IP, TLS, request path)
 	    •	Prepare for structured logging (even if logger remains simple)
         •   Log to log file as well as stdout

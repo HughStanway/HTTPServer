@@ -40,8 +40,11 @@
 # debug information files
 *.dw
 
+# Logs
+*.log
+
 # Other
-build/
+build*/
 Testing/
 .vscode/
 .DS_Store
