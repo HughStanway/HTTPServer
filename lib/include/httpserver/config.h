@@ -72,6 +72,7 @@ struct ServerConfig {
    * Logging level
    */
   LogLevel kLogLevel{LogLevel::INFO};
+  bool kFileLoggingEnabled = false;
 };
 
 class Config {

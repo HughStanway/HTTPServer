@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -25,11 +26,17 @@ class Logger {
   Logger& operator=(const Logger&) = delete;
 
   std::string levelToString(LogLevel level);
+  std::string buildLogLine(const std::string& message, LogLevel level);
   std::string currentTime();
   std::string currentThreadName();
+  std::string generateLogFileName();
+  void initializeLogFileIfNeeded();
 
   LogLevel d_currentLogLevel{LogLevel::INFO};
   std::mutex d_mtx;
+  std::ofstream d_logFile;
+  std::string d_logFilePath;
+  bool d_logFileInitialized{false};
 };
 
 #define LOG_INFO(msg) \

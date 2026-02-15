@@ -228,6 +228,9 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
       HTTPServer::Logger::instance().setLevel(level);
       cfg.kLogLevel = level;
     }
+
+    if (auto v = get_toml_value<bool>(net, "file_logging_enabled"))
+      cfg.kFileLoggingEnabled = v.value();
   }
 
   return cfg;
