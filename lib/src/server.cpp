@@ -289,6 +289,10 @@ void Server::start() {
               LogEvent("connection_accepted").add("client_fd", client_fd));
     if (d_thread_pool->enqueue(
             [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
+      HttpResponse response =
+          Responses::badRequest(StatusCode::ServiceUnavailable);
+      const std::string payload = response.serialize();
+      send(client_fd, payload.c_str(), payload.size(), 0);
       close(client_fd);
     }
   });
