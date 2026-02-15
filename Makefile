@@ -11,8 +11,9 @@ VENV_DIR := .venv
 PYTHON := python3.13
 VENV_PYTHON := $(VENV_DIR)/bin/python
 VENV_PIP := $(VENV_DIR)/bin/pip
+CLANG_FORMAT ?= clang-format
 
-.PHONY: build run clean unit_test venv integration_test test format tidy help
+.PHONY: build run clean unit_test venv integration_test test format format-check help
 
 build:
 	@echo "==> Configuring and Building..."
@@ -47,10 +48,14 @@ integration_test: build venv
 test: unit_test integration_test
 
 format:
-	clang-format -i $(shell find $(SRC_DIRS) -name '*.cpp' -o -name '*.hpp' -o -name '*.h')
+	@echo "==> Formatting source files in lib/..."
+	@find lib -type f \( -name "*.cpp" -o -name "*.h" \) \
+	-exec $(CLANG_FORMAT) -i {} +
 
-tidy:
-	clang-tidy -p build $(shell find src include -name '*.cpp')
+format-check:
+	@echo "==> Checking formatting..."
+	@find lib -type f \( -name "*.cpp" -o -name "*.h" \) \
+	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
 
 help:
 	@printf "Usage: make [target]\n\n"

@@ -7,19 +7,19 @@
 namespace HTTPServer {
 
 class Port {
-  public:
-    explicit Port(int value);
-    explicit operator int() const;
-    bool operator==(const Port& other) const;
+ public:
+  explicit Port(int value);
+  explicit operator int() const;
+  bool operator==(const Port& other) const;
 
-    int value() const;
-    std::string toString() const;
-    uint16_t toNetwork() const;
+  int value() const;
+  std::string toString() const;
+  uint16_t toNetwork() const;
 
-  private:
-    int d_value;
+ private:
+  int d_value;
 };
 
-} // namespace HTTPServer
+}  // namespace HTTPServer
 
 #endif

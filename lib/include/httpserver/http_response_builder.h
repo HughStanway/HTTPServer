@@ -4,20 +4,21 @@
 #include <string>
 
 #include "http_object.h"
-#include "httpserver/port.h"
+#include "port.h"
 
 namespace HTTPServer {
 
 namespace Responses {
 
-HttpResponse ok(const HttpRequest&, const std::string&, const std::string& = "text/plain");
+HttpResponse ok(const HttpRequest&, const std::string&,
+                const std::string& = "text/plain");
 HttpResponse notFound(const HttpRequest&);
 HttpResponse badRequest(StatusCode);
 HttpResponse redirection(const HttpRequest&, const Port&);
 HttpResponse file(const HttpRequest&, const std::string&);
 
-} // namespace Responses
+}  // namespace Responses
 
-} // namespace HTTPServer
+}  // namespace HTTPServer
 
 #endif

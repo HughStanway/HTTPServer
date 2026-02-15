@@ -5,9 +5,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "port.h"
 #include "log_level.h"
 #include "logger.h"
+#include "port.h"
 
 namespace HTTPServer {
 

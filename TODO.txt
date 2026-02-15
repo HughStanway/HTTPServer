@@ -63,6 +63,8 @@ Further server enhancements:
 	[ ]	Improve log structure
 	    •	Standardize log fields (fd, IP, TLS, request path)
 	    •	Prepare for structured logging (even if logger remains simple)
+        •   Log to log file as well as stdout
+        •   More logging configuration from config file
 
 ⸻
 
