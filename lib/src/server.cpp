@@ -100,6 +100,13 @@ std::string extract_ip(int fd) {
   return buf;
 }
 
+void send_bad_request_and_close(HTTPServer::StatusCode code, int client_fd) {
+  HTTPServer::HttpResponse response = HTTPServer::Responses::badRequest(code);
+  const std::string payload = response.serialize();
+  send(client_fd, payload.c_str(), payload.size(), 0);
+  close(client_fd);
+}
+
 }  // namespace
 
 namespace HTTPServer {
@@ -289,11 +296,7 @@ void Server::start() {
               LogEvent("connection_accepted").add("client_fd", client_fd));
     if (d_thread_pool->enqueue(
             [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
-      HttpResponse response =
-          Responses::badRequest(StatusCode::ServiceUnavailable);
-      const std::string payload = response.serialize();
-      send(client_fd, payload.c_str(), payload.size(), 0);
-      close(client_fd);
+      send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
     }
   });
   LOG_EVENT(LogLevel::INFO, LogEvent("server_main_loop_exited"));
@@ -327,10 +330,10 @@ void Server::dispatch_client(int client_fd) {
 
     if (entry.active >= Config::get().kMaxConnectionsPerIp) {
       LOG_EVENT(LogLevel::WARN,
-                LogEvent("max_number_connections_from_ip_exeeded")
+                LogEvent("max_number_connections_from_ip_exceeded")
                     .add("client_fd", client_fd)
                     .add("ip", client_ip));
-      close(client_fd);
+      send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
       return;
     }
   }
