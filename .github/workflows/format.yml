@@ -15,7 +15,9 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
 
-      - name: Check formatting
+      - name: Check formatting (lib only)
         run: |
-          find lib -type f \( -name "*.cpp" -o -name "*.h" \) \
-          -exec clang-format --dry-run --Werror {} +
+            FILES=$(find lib -type f \( -name "*.cpp" -o -name "*.h" \))
+            if [ -n "$FILES" ]; then
+            clang-format --dry-run --Werror $FILES
+            fi
