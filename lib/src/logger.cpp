@@ -63,7 +63,9 @@ void Logger::log(const std::string& message, LogLevel level) {
     return;
   }
 
-  std::cout << "[" << currentTime() << "] " << "[" << levelToString(level) << "] " << "[" << currentThreadName() << "] " << message << std::endl;
+  std::cout << "[" << currentTime() << "] " << "[" << levelToString(level)
+            << "] " << "[" << currentThreadName() << "] " << message
+            << std::endl;
 }
 
 void Logger::logErrno(const std::string& message, LogLevel level) {
