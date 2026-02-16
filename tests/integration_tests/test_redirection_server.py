@@ -96,7 +96,7 @@ def test_redirection_server_always_closes_connection(
     r1 = conn.getresponse()
     r1.read() 
     
-    assert runnable_server_instance.get_output().count("event=client_disconnected") == 1
+    runnable_server_instance.wait_for_output("event=client_disconnected")
 
     with pytest.raises(RemoteDisconnected):
         conn.request("GET", "/")
