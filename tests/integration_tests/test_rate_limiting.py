@@ -152,5 +152,6 @@ def test_rate_per_ip_token_bucket_refills_over_time(
     assert r1.status == 200
     assert r2.status == 429
     assert r3.status == 200
+
     log_output = runnable_server_instance.get_output()
-    print(log_output)
+    assert log_output.count("event=rate_limit_exceeded") == 1
