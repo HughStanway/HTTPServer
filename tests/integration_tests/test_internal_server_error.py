@@ -1,8 +1,9 @@
-import pytest # type: ignore
 import socket
 import ssl
-from http.client import HTTPSConnection
 from contextlib import contextmanager
+from http.client import HTTPSConnection
+
+import pytest  # type: ignore
 from common import _make_request
 from conftest import HttpServerRunner
 
@@ -33,7 +34,9 @@ def test_startup_fails_with_invalid_tls_files(
     files cannot be loaded.
     """
     # GIVEN
-    runnable_server_instance.set_config_value("https.cert_file", "/tmp/missing-cert.pem")
+    runnable_server_instance.set_config_value(
+        "https.cert_file", "/tmp/missing-cert.pem"
+    )
     runnable_server_instance.set_config_value("https.key_file", "/tmp/missing-key.pem")
 
     # WHEN / THEN
@@ -41,7 +44,7 @@ def test_startup_fails_with_invalid_tls_files(
         runnable_server_instance.start(with_https=True)
 
     assert not runnable_server_instance.is_alive()
-    
+
     log_output = runnable_server_instance.get_output()
     assert "event=server_starting" in log_output
     assert "event=ssl_cert_or_key_load_failed" in log_output
@@ -88,7 +91,7 @@ def test_redirection_start_failure_does_not_stop_main_server(
         # THEN
         assert response.status == 200
         assert "OK" in body
-        
+
         log_output = runnable_server_instance.get_output()
         assert "event=redirection_server_start_failed" in log_output
 
@@ -130,12 +133,14 @@ def test_tls_handshake_failure_isolated_to_client(
     # THEN
     assert response.status == 200
     assert "OK" in body
-    
+
     log_output = runnable_server_instance.get_output()
     assert "event=tls_handshake_failed" in log_output
 
 
-@pytest.mark.filterwarnings("ignore:ssl.TLSVersion.TLSv1 is deprecated:DeprecationWarning")
+@pytest.mark.filterwarnings(
+    "ignore:ssl.TLSVersion.TLSv1 is deprecated:DeprecationWarning"
+)
 def test_https_rejects_client_using_tls_1_0(
     runnable_server_instance: HttpServerRunner,
 ):
@@ -184,7 +189,7 @@ def test_https_rejects_disallowed_tls12_cipher(
         conn.request("GET", "/", headers={"Connection": "close"})
         conn.getresponse()
     conn.close()
-    
+
     log_output = runnable_server_instance.get_output()
     assert "event=tls_handshake_failed" in log_output
 

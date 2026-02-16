@@ -1,5 +1,6 @@
-from conftest import HttpServerRunner
 from common import _make_request
+from conftest import HttpServerRunner
+
 
 def test_idle_ip_cleanup_removes_inactive_ips(
     runnable_server_instance: HttpServerRunner,
@@ -19,13 +20,16 @@ def test_idle_ip_cleanup_removes_inactive_ips(
     # WHEN
     runnable_server_instance.wait_for_output("event=idle_ip_cleanup_sleeping")
     _make_request("GET", "/", {"Connection": "close"})
-    
+
     # THEN
-    assert runnable_server_instance.wait_for_output("event=idle_ip_cleanup_finished", timeout=6.0)
-    
+    assert runnable_server_instance.wait_for_output(
+        "event=idle_ip_cleanup_finished", timeout=6.0
+    )
+
     log_output = runnable_server_instance.get_output()
     assert "event=idle_ip_entry_erased" in log_output
     assert "removed=1" in log_output
+
 
 def test_idle_ip_cleanup_does_not_remove_active_ips(
     runnable_server_instance: HttpServerRunner,
@@ -37,7 +41,9 @@ def test_idle_ip_cleanup_does_not_remove_active_ips(
     """
     # GIVEN
     runnable_server_instance.set_config_value("idle-ip-cleanup.interval_seconds", 5)
-    runnable_server_instance.set_config_value("idle-ip-cleanup.idle_timeout_seconds", 60)
+    runnable_server_instance.set_config_value(
+        "idle-ip-cleanup.idle_timeout_seconds", 60
+    )
 
     runnable_server_instance.start()
     assert runnable_server_instance.is_alive()
@@ -45,10 +51,12 @@ def test_idle_ip_cleanup_does_not_remove_active_ips(
     # WHEN
     runnable_server_instance.wait_for_output("event=idle_ip_cleanup_sleeping")
     _make_request("GET", "/", {"Connection": "close"})
-    
+
     # THEN
-    assert runnable_server_instance.wait_for_output("event=idle_ip_cleanup_finished", timeout=6.0)
-    
+    assert runnable_server_instance.wait_for_output(
+        "event=idle_ip_cleanup_finished", timeout=6.0
+    )
+
     log_output = runnable_server_instance.get_output()
     assert "event=idle_ip_entry_erased" not in log_output
     assert "removed=0" in log_output

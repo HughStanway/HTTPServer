@@ -1,5 +1,5 @@
-from conftest import HttpServerRunner
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_http_request_with_simple_parameters(
@@ -40,4 +40,4 @@ def test_http_request_with_parameters_and_url_decoding(
 
     # THEN:
     assert response.status == 200
-    assert f"Parameter: hello world!" in body
+    assert "Parameter: hello world!" in body

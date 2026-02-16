@@ -1,6 +1,5 @@
-import pytest  # type: ignore
-from conftest import HttpServerRunner
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_static_directory_route_valid_path(runnable_server_instance: HttpServerRunner):
@@ -40,7 +39,8 @@ def test_static_directory_change_file_path_is_not_allowed(
     runnable_server_instance: HttpServerRunner,
 ):
     """
-    Verifies that static routes with .. directory changes in the filepath are not allowed
+    Verifies that static routes with .. directory changes
+    in the filepath are not allowed
     """
     # GIVEN:
     runnable_server_instance.start()

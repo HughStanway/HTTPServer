@@ -1,6 +1,7 @@
 import socket
-import time
 import threading
+import time
+
 from conftest import HttpServerRunner
 
 
@@ -103,7 +104,7 @@ def test_server_disconnects_client_after_recv_timeout(
     runnable_server_instance.start()
     assert runnable_server_instance.is_alive()
 
-    s = socket.create_connection(("127.0.0.1", 8080), timeout=2)
+    socket.create_connection(("127.0.0.1", 8080), timeout=2)
     assert runnable_server_instance.wait_for_output("event=connected")
 
     # WHEN:

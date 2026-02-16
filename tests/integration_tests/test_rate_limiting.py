@@ -1,11 +1,13 @@
-from http.client import HTTPConnection
-from conftest import HttpServerRunner
-from common import _make_request
 import threading
 import time
+from http.client import HTTPConnection
+
+from common import _make_request
+from conftest import HttpServerRunner
+
 
 def test_connection_guard_tracks_client_lifecycle(
-    runnable_server_instance: HttpServerRunner
+    runnable_server_instance: HttpServerRunner,
 ):
     """
     Test verifies that a client connection correctly enters and exits
@@ -15,19 +17,20 @@ def test_connection_guard_tracks_client_lifecycle(
     # GIVEN
     runnable_server_instance.start()
     assert runnable_server_instance.is_alive()
-    
+
     # WHEN
     _, _ = _make_request("GET", "/", {"Connection": "close"})
-     
+
     # THEN
     log_output = runnable_server_instance.get_output()
     assert "event=connection_guard_enter" in log_output
     assert "active_connections=1" in log_output
     assert "event=connection_guard_exit" in log_output
     assert "active_connections=0" in log_output
-    
+
+
 def test_server_limits_number_of_requests_per_connection(
-    runnable_server_instance: HttpServerRunner
+    runnable_server_instance: HttpServerRunner,
 ):
     """
     Test verifies that the server enforces a limit on the number of requests
@@ -44,11 +47,11 @@ def test_server_limits_number_of_requests_per_connection(
 
     conn.request("GET", "/")
     r1 = conn.getresponse()
-    r1.read() 
+    r1.read()
 
     conn.request("GET", "/")
     r2 = conn.getresponse()
-    r2.read() 
+    r2.read()
 
     conn.close()
 
@@ -60,8 +63,9 @@ def test_server_limits_number_of_requests_per_connection(
     assert log_output.count("event=http_request") == 2
     assert log_output.count("event=max_keep_alive_requests_exceeded") == 1
 
+
 def test_server_limits_concurrent_connections_per_ip(
-    runnable_server_instance: HttpServerRunner
+    runnable_server_instance: HttpServerRunner,
 ):
     """
     Test verifies that the server enforces a limit on concurrent connections
@@ -99,9 +103,10 @@ def test_server_limits_concurrent_connections_per_ip(
     assert log_output.count("event=connection_accepted") == 2
     assert log_output.count("event=max_number_connections_from_ip_exceeded") == 1
     assert log_output.count("event=connected") == 1
-    
+
+
 def test_rate_per_ip_token_bucket_allows_burst_requests(
-    runnable_server_instance: HttpServerRunner
+    runnable_server_instance: HttpServerRunner,
 ):
     """
     Test verifies that the token bucket algorithm for rate limiting allows
@@ -130,7 +135,7 @@ def test_rate_per_ip_token_bucket_allows_burst_requests(
 
 
 def test_rate_per_ip_token_bucket_refills_over_time(
-    runnable_server_instance: HttpServerRunner
+    runnable_server_instance: HttpServerRunner,
 ):
     """
     Test verifies that after the token bucket is exhausted, requests are

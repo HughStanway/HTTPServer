@@ -1,8 +1,9 @@
-import pytest  # type: ignore
 import socket
 import ssl
-from conftest import HttpServerRunner
+
+import pytest  # type: ignore
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_client_connection_to_wrong_port_refused(

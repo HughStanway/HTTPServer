@@ -1,12 +1,12 @@
-import pytest  # type: ignore
 import os
 import subprocess
 import threading
 import time
-from config_util import ConfigBuilder
 from pathlib import Path
-from typing import Optional, Generator, Tuple, Any
+from typing import Any, Generator, Optional, Tuple
 
+import pytest  # type: ignore
+from config_util import ConfigBuilder
 
 SERVER_BINARY = (
     Path(__file__).resolve().parents[2]
