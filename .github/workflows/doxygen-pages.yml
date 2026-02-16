@@ -1,0 +1,61 @@
+name: Publish Doxygen Docs
+
+on:
+  push :
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag is on main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          git fetch origin main --depth=1
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -q "origin/main"; then
+            echo "Tag commit is not on main; skipping deploy."
+            exit 1
+          fi
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Build docs
+        env:
+          DOC_VERSION: ${{ github.ref_name }}
+        run: |
+          cp Doxyfile Doxyfile.ci
+          sed -i "s/^PROJECT_NUMBER.*/PROJECT_NUMBER         = ${DOC_VERSION}/" Doxyfile.ci
+          doxygen Doxyfile.ci
+
+          mkdir -p _site
+          cp -R docs/html/. _site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
