@@ -29,8 +29,8 @@ struct ServerConfig {
   /**
    * Periodic Idle IP Cleanup
    */
-  std::chrono::minutes kCleanupInterval{10};
-  std::chrono::minutes kIdleTimeout{5};
+  std::chrono::seconds kCleanupInterval{600};
+  std::chrono::seconds kIdleTimeout{300};
 
   /**
    * Networking

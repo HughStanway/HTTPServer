@@ -1,6 +1,7 @@
 from http.client import HTTPConnection
-from conftest import HttpServerRunner
+
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_get_root_returns_ok(runnable_server_instance: HttpServerRunner):
@@ -40,8 +41,8 @@ def test_keepalive_allows_multiple_requests_on_same_connection(
     runnable_server_instance: HttpServerRunner,
 ):
     """
-    Verify that a single connection can be reused for multiple requests (keep-alive) and is kept
-    open by the server
+    Verify that a single connection can be reused for multiple requests (keep-alive) and
+    is kept open by the server
     """
     # GIVEN:
     runnable_server_instance.start()
@@ -71,8 +72,8 @@ def test_connection_close_header_closes_connection(
     runnable_server_instance: HttpServerRunner,
 ):
     """
-    If the client sends 'Connection: close', the server should include 'Connection: close'
-    and close the socket after responding.
+    If the client sends 'Connection: close', the server should include
+    'Connection: close' and close the socket after responding.
     """
     # GIVEN:
     runnable_server_instance.start()

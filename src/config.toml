@@ -9,8 +9,8 @@ key_file = ".env/key.pem"
 enable_http_redirection = true
 
 [idle-ip-cleanup]
-interval_minutes = 10
-idle_timeout_minutes = 0
+interval_seconds = 600
+idle_timeout_seconds = 300
 
 [network]
 client_timeout_seconds = 5

@@ -13,7 +13,7 @@ VENV_PYTHON := $(VENV_DIR)/bin/python
 VENV_PIP := $(VENV_DIR)/bin/pip
 CLANG_FORMAT ?= clang-format
 
-.PHONY: build run clean unit_test venv integration_test test format format-check help
+.PHONY: build run clean unit_test venv integration_test test format format-check format-python help
 
 build:
 	@echo "==> Configuring and Building..."
@@ -56,6 +56,10 @@ format-check:
 	@echo "==> Checking formatting..."
 	@find lib -type f \( -name "*.cpp" -o -name "*.h" \) \
 	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
+
+format-python:
+	@echo "==> Formatting Python files..."
+	@$(VENV_PYTHON) -m ruff format ${TEST_DIR}
 
 help:
 	@printf "Usage: make [target]\n\n"

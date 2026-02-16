@@ -1,5 +1,5 @@
-from conftest import HttpServerRunner
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_https_get_root_returns_ok(runnable_server_instance: HttpServerRunner):

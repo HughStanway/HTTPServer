@@ -1,5 +1,5 @@
-from conftest import HttpServerRunner
 from common import _make_request
+from conftest import HttpServerRunner
 
 
 def test_server_matches_dynamic_route(runnable_server_instance: HttpServerRunner):
