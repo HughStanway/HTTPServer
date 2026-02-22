@@ -52,3 +52,13 @@ Testing/
 .venv
 .pytest_cache
 __pycache__
+.ruff_cache/
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Generated documentation
+docs/
