@@ -3,9 +3,11 @@
 ![License](https://img.shields.io/github/license/HughStanway/HTTPServer)
 ![Stars](https://img.shields.io/github/stars/HughStanway/HTTPServer)
 ![Tests](https://img.shields.io/github/actions/workflow/status/HughStanway/HTTPServer/build-and-test.yml?branch=main)
-![Release](https://img.shields.io/github/v/release/HughStanway/HTTPServer)
+![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)
 
 A small, single-binary HTTP server library and example application written in modern C++. It provides a minimal HTTP request parser, routing, static-file handling, and helpers for building HTTP and HTTPS servers.
+
+**Documentation is available at: [https://hughstanway.github.io/HTTPServer/](https://hughstanway.github.io/HTTPServer/)**
 
 ## Directory Structure
 

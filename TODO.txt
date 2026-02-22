@@ -11,14 +11,13 @@
 [x] configuration file (nginx like) (allowed methods, ports, etc)
 [x] Integration tests - internal server error, redirection server, thread pool queue, periodic idle
     ip cleanup (probably need to have config file todo this one) and rate limiting
+[x] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] json response - need a json Reponse:: type similar to file::
-[ ] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [ ] Compile as a proper library not just a local library
 [ ] Python wrapper similar to FastAPI
 [ ] Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
 [ ] Use this server as a backend for serving a simple file storage website (Like google drive)
 [ ] research man pages for sys calls used by server in order to make the socket setup better for deployment
-[ ] interative readme and create proper github release actions
 [ ] implement server metrics and distributed tracing
 
 Further server enhancements:
