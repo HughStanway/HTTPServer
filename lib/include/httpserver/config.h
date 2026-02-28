@@ -36,6 +36,7 @@ struct ServerConfig {
    * Networking
    */
   int kClientTimeoutSec = 5;
+  int kMaxRequestDurationSec = 30;
   int kRecvBufferSize = 4096;
 
   /**
@@ -57,6 +58,8 @@ struct ServerConfig {
    * HTTP Limits
    */
   int kMaxHeaderBytes = 16 * 1024;
+  int kMaxHeaderCount = 100;
+  int kMaxTotalHeaderSize = 64 * 1024;
   int kMaxBodyBytes = 10 * 1024 * 1024;
   std::unordered_set<std::string> kAllowedMethods = {
       "GET",

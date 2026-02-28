@@ -51,6 +51,7 @@ StatusCode parseErrorToStatusCode(ParseError err) {
     case ParseError::BODY_TOO_LARGE:
       return StatusCode::PayloadTooLarge;  // 413
 
+    case ParseError::TOTAL_HEADER_SIZE_TOO_LARGE:
     case ParseError::HEADER_TOO_LARGE:
       return StatusCode::RequestHeaderFieldsTooLarge;  // 431
 
@@ -65,6 +66,7 @@ StatusCode parseErrorToStatusCode(ParseError err) {
     case ParseError::CONTENT_LENGTH_EMPTY:
     case ParseError::CONTENT_LENGTH_NOT_NUMERIC:
     case ParseError::INVALID_CHUNKED_ENCODING:
+    case ParseError::TOO_MANY_HEADERS:
       return StatusCode::BadRequest;  // 400
 
     default:

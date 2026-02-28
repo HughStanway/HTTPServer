@@ -146,6 +146,7 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
   bool keepAlive = true;
   int requests_handled = 0;
   while (keepAlive) {
+    auto request_start = std::chrono::steady_clock::now();
     char buffer[Config::get().kRecvBufferSize];
     int bytes = readFunc(buffer, sizeof(buffer));
     if (bytes <= 0) {
@@ -187,6 +188,20 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
 
     if (result == ParseResult::NEED_MORE_DATA) {
       continue;
+    }
+
+    // Complete request - check for timeout
+    auto now = std::chrono::steady_clock::now();
+    if (now - request_start >
+        std::chrono::seconds(Config::get().kMaxRequestDurationSec)) {
+      LOG_EVENT(LogLevel::ERROR, LogEvent("request_timeout")
+                                     .add("client_fd", client_fd)
+                                     .add("ip", client_ip)
+                                     .add("tls", isTLS));
+      HttpResponse resp = Responses::badRequest(StatusCode::RequestTimeout);
+      auto payload = resp.serialize();
+      writeFunc(payload.c_str(), payload.size());
+      break;
     }
 
     if (result == ParseResult::PARSE_ERROR) {
