@@ -102,11 +102,11 @@ def test_server_disconnects_client_after_recv_timeout(
     """
     # GIVEN:
     runnable_server_instance.set_config_value("network.client_timeout_seconds", 1)
-    
+
     runnable_server_instance.start()
     assert runnable_server_instance.is_alive()
 
-    s = socket.create_connection(("127.0.0.1", 8080), timeout=2) # noqa: F841
+    s = socket.create_connection(("127.0.0.1", 8080), timeout=2)  # noqa: F841
     assert runnable_server_instance.wait_for_output("event=connected")
 
     # WHEN:

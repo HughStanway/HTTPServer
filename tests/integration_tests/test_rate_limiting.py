@@ -1,5 +1,6 @@
 import threading
 import time
+import socket
 from http.client import HTTPConnection
 
 from common import _make_request
@@ -160,3 +161,35 @@ def test_rate_per_ip_token_bucket_refills_over_time(
 
     log_output = runnable_server_instance.get_output()
     assert log_output.count("event=rate_limit_exceeded") == 1
+
+
+def test_request_duration_timeout_enforced(runnable_server_instance: HttpServerRunner):
+    """
+    Verifies that the server terminates requests that take too long to complete.
+    """
+    # GIVEN
+    runnable_server_instance.set_config_value("network.max_request_duration_seconds", 1)
+    runnable_server_instance.start()
+    assert runnable_server_instance.is_alive()
+
+    # WHEN
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5.0)
+    try:
+        s.connect(("127.0.0.1", 8080))
+        # Send partial request
+        s.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\n")
+
+        # Wait for timeout to trigger
+        time.sleep(1.5)
+
+        # Try to send more or read response
+        s.sendall(b"X-Late: true\r\n\r\n")
+
+        data = s.recv(4096).decode(errors="ignore")
+    finally:
+        s.close()
+
+    # THEN
+    assert "408 Request Timeout" in data
+    assert "event=request_timeout" in runnable_server_instance.get_output()

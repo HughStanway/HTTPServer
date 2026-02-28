@@ -89,3 +89,43 @@ def test_malformed_request_method_returns_400_or_ge_400(
     # THEN:
     assert "HTTP/1.1" in data or "HTTP/1.0" in data
     assert "400 Bad Request" in data
+
+
+def test_max_header_count_enforced(runnable_server_instance: HttpServerRunner):
+    """
+    Verifies that the server rejects requests with too many headers.
+    """
+    # GIVEN:
+    runnable_server_instance.start()
+    assert runnable_server_instance.is_alive()
+
+    headers = {f"X-Header-{i}": "value" for i in range(101)}
+    # WHEN:
+    resp, body = _make_request("GET", "/", headers=headers)
+
+    # THEN:
+    assert resp.status == 400
+    assert "event=bad_request" in runnable_server_instance.get_output()
+    assert "parse_error=14" in runnable_server_instance.get_output()
+
+
+def test_max_total_header_size_enforced(runnable_server_instance: HttpServerRunner):
+    """
+    Verifies that the server rejects requests where total header size exceeds limit.
+    """
+    # GIVEN:
+    runnable_server_instance.start()
+    assert runnable_server_instance.is_alive()
+
+    headers = {}
+    for i in range(64):
+        headers[f"X-Long-Header-{i}"] = "a" * 1025
+
+    # WHEN:
+    headers = {f"X-Long-Header-{i}": "a" * 1025 for i in range(64)}
+    resp, body = _make_request("GET", "/", headers=headers)
+
+    # THEN
+    assert resp.status == 431
+    assert "event=bad_request" in runnable_server_instance.get_output()
+    assert "parse_error=15" in runnable_server_instance.get_output()

@@ -29,6 +29,8 @@ enum class ParseError {
   CONTENT_LENGTH_NOT_NUMERIC,
   BODY_TOO_LARGE,
   INVALID_CHUNKED_ENCODING,
+  TOO_MANY_HEADERS,
+  TOTAL_HEADER_SIZE_TOO_LARGE,
 };
 
 class HttpParser {
@@ -65,6 +67,8 @@ class HttpParser {
   size_t d_bodyBytesRemaining = 0;
   size_t d_currentChunkSize = 0;
   size_t d_currentChunkRead = 0;
+  size_t d_currentHeaderCount = 0;
+  size_t d_currentTotalHeaderSize = 0;
 
   /**
    * Internal parsing methods

@@ -93,6 +93,8 @@ void HttpParser::reset() {
   d_bodyBytesRemaining = 0;
   d_currentChunkSize = 0;
   d_currentChunkRead = 0;
+  d_currentHeaderCount = 0;
+  d_currentTotalHeaderSize = 0;
 }
 
 bool HttpParser::parseRequestLine(std::string_view& buffer) {
@@ -213,6 +215,20 @@ bool HttpParser::parseHeaders(std::string_view& buffer) {
 
     while (!value.empty() && std::isspace((unsigned char)value.front()))
       value.erase(value.begin());
+
+    d_currentHeaderCount++;
+    if (d_currentHeaderCount > Config::get().kMaxHeaderCount) {
+      d_error = ParseError::TOO_MANY_HEADERS;
+      d_state = ParseState::ERROR;
+      return false;
+    }
+
+    d_currentTotalHeaderSize += name.size() + value.size();
+    if (d_currentTotalHeaderSize > Config::get().kMaxTotalHeaderSize) {
+      d_error = ParseError::TOTAL_HEADER_SIZE_TOO_LARGE;
+      d_state = ParseState::ERROR;
+      return false;
+    }
 
     d_request.headers[name].push_back(value);
   }

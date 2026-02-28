@@ -822,3 +822,42 @@ TEST(HttpParserTests, UnexpectedEOFInHeaders) {
   ParseError err = parser.error();
   EXPECT_EQ(err, ParseError::NONE);
 }
+
+TEST(HttpParserTests, TooManyHeaders) {
+  // GIVEN
+  HttpParser parser;
+  std::string recvBuffer = "GET / HTTP/1.1\r\nHost: x\r\n";
+  for (int i = 0; i < 101; ++i) {
+    recvBuffer += "X-Header-" + std::to_string(i) + ": value\r\n";
+  }
+  recvBuffer += "\r\n";
+  std::string_view view(recvBuffer);
+
+  // WHEN
+  ParseResult result = parser.parse(view);
+
+  // THEN
+  EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+  EXPECT_EQ(parser.error(), ParseError::TOO_MANY_HEADERS);
+}
+
+TEST(HttpParserTests, TotalHeaderSizeTooLarge) {
+  // GIVEN
+  HttpParser parser;
+  std::string recvBuffer = "GET / HTTP/1.1\r\nHost: x\r\n";
+  // kMaxHeaderBytes is 16KB. kMaxTotalHeaderSize is 64KB.
+  // We send 5 headers of 15KB each to exceed 64KB total.
+  std::string value(15 * 1024, 'a');
+  for (int i = 0; i < 5; ++i) {
+    recvBuffer += "X-Header-" + std::to_string(i) + ": " + value + "\r\n";
+  }
+  recvBuffer += "\r\n";
+  std::string_view view(recvBuffer);
+
+  // WHEN
+  ParseResult result = parser.parse(view);
+
+  // THEN
+  EXPECT_EQ(result, ParseResult::PARSE_ERROR);
+  EXPECT_EQ(parser.error(), ParseError::TOTAL_HEADER_SIZE_TOO_LARGE);
+}

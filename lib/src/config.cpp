@@ -129,6 +129,9 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
 
     if (auto v = get_toml_value<int>(net, "recv_buffer_size"))
       cfg.kRecvBufferSize = v.value();
+
+    if (auto v = get_toml_value<int>(net, "max_request_duration_seconds"))
+      cfg.kMaxRequestDurationSec = v.value();
   }
 
   if (cfg.kClientTimeoutSec <= 0)
@@ -136,6 +139,10 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
 
   if (cfg.kRecvBufferSize <= 0)
     throw std::runtime_error("network::recv_buffer_size must be > 0");
+
+  if (cfg.kMaxRequestDurationSec <= 0)
+    throw std::runtime_error(
+        "network::max_request_duration_seconds must be > 0");
 
   /**
    * Threading
@@ -200,6 +207,12 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
     if (auto v = get_toml_value<int>(http, "max_body_bytes"))
       cfg.kMaxBodyBytes = v.value();
 
+    if (auto v = get_toml_value<int>(http, "max_header_count"))
+      cfg.kMaxHeaderCount = v.value();
+
+    if (auto v = get_toml_value<int>(http, "max_total_header_size"))
+      cfg.kMaxTotalHeaderSize = v.value();
+
     if (auto arr = http->get("allowed_methods")->as_array()) {
       cfg.kAllowedMethods.clear();
       for (auto& v : *arr)
@@ -218,6 +231,12 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
 
   if (cfg.kMaxBodyBytes <= 0)
     throw std::runtime_error("http-config::max_body_bytes must be > 0");
+
+  if (cfg.kMaxHeaderCount <= 0)
+    throw std::runtime_error("http-config::max_header_count must be > 0");
+
+  if (cfg.kMaxTotalHeaderSize <= 0)
+    throw std::runtime_error("http-config::max_total_header_size must be > 0");
 
   /**
    * Logging Level
