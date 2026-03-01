@@ -18,6 +18,7 @@
 #include "http_response_builder.h"
 #include "log_event.h"
 #include "logger.h"
+#include "metrics.h"
 #include "periodic_idle_ip_cleanup.h"
 #include "port.h"
 #include "router.h"
@@ -132,6 +133,8 @@ inline bool Server::allow_request_from_ip(const std::string& ip) {
   return true;
 }
 
+enum class RequestState { Idle, Receiving };
+
 template <typename Reader, typename Writer>
 void Server::init_request_processor(int client_fd, const std::string& client_ip,
                                     Reader readFunc, Writer writeFunc,
@@ -145,8 +148,14 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
   std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
+  RequestState request_state = RequestState::Idle;
+  std::chrono::steady_clock::time_point request_start;
   while (keepAlive) {
-    auto request_start = std::chrono::steady_clock::now();
+    if (request_state == RequestState::Idle) {
+      request_state = RequestState::Receiving;
+      request_start = std::chrono::steady_clock::now();
+    }
+
     char buffer[Config::get().kRecvBufferSize];
     int bytes = readFunc(buffer, sizeof(buffer));
     if (bytes <= 0) {
@@ -166,21 +175,25 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
                                        .add("ip", client_ip)
                                        .add("tls", isTLS));
       break;
+    } else {
+      Metrics::instance().recordBytesReceived(bytes);
+      recvBuffer.append(buffer, bytes);
     }
 
-    recvBuffer.append(buffer, bytes);
-
-    auto now = std::chrono::steady_clock::now();
-    if (now - request_start >
-        std::chrono::seconds(Config::get().kMaxRequestDurationSec)) {
-      LOG_EVENT(LogLevel::ERROR, LogEvent("request_timeout")
-                                     .add("client_fd", client_fd)
-                                     .add("ip", client_ip)
-                                     .add("tls", isTLS));
-      HttpResponse resp = Responses::badRequest(StatusCode::RequestTimeout);
-      auto payload = resp.serialize();
-      writeFunc(payload.c_str(), payload.size());
-      break;
+    if (request_state == RequestState::Receiving) {
+      auto now = std::chrono::steady_clock::now();
+      if (now - request_start >
+          std::chrono::seconds(Config::get().kMaxRequestDurationSec)) {
+        LOG_EVENT(LogLevel::ERROR, LogEvent("request_timeout")
+                                       .add("client_fd", client_fd)
+                                       .add("ip", client_ip)
+                                       .add("tls", isTLS));
+        HttpResponse resp = Responses::badRequest(StatusCode::RequestTimeout);
+        auto payload = resp.serialize();
+        writeFunc(payload.c_str(), payload.size());
+        Metrics::instance().recordResponseStatus(resp.code);
+        break;
+      }
     }
 
     // Detect TLS handshake on non-HTTPS connection
@@ -199,10 +212,12 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
     // Remove consumed bytes
     recvBuffer.erase(0, recvBuffer.size() - view.size());
 
+    // PATRIAL REQUEST
     if (result == ParseResult::NEED_MORE_DATA) {
       continue;
     }
 
+    // INVALID REQUEST
     if (result == ParseResult::PARSE_ERROR) {
       ParseError err = parser.error();
       StatusCode status = parseErrorToStatusCode(err);
@@ -215,6 +230,7 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
       HttpResponse resp = Responses::badRequest(status);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
+      Metrics::instance().recordResponseStatus(resp.code);
       break;
     }
 
@@ -237,6 +253,7 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
+      Metrics::instance().recordResponseStatus(resp.code);
       break;
     }
 
@@ -248,6 +265,7 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
       writeFunc(payload.c_str(), payload.size());
+      Metrics::instance().recordResponseStatus(resp.code);
       break;
     }
 
@@ -263,10 +281,23 @@ void Server::init_request_processor(int client_fd, const std::string& client_ip,
                                        .add("ip", client_ip)
                                        .add("tls", isTLS));
       }
+    } else {
+      Metrics::instance().recordBytesSent(bytes);
+      Metrics::instance().recordResponseStatus(response.code);
+    }
+
+    if (request_state == RequestState::Receiving) {
+      auto request_end = std::chrono::steady_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+          request_end - request_start);
+
+      Metrics::instance().recordRequestProcessingTime(duration);
+      request_state = RequestState::Idle;
     }
 
     parser.reset();
     requests_handled++;
+    Metrics::instance().incrementTotalRequests();
   }
 
   if (isTLS && ssl) {

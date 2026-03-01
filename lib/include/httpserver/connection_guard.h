@@ -6,6 +6,7 @@
 
 #include "log_event.h"
 #include "logger.h"
+#include "metrics.h"
 
 namespace HTTPServer {
 
@@ -24,6 +25,7 @@ class ConnectionGuard {
       std::lock_guard lock(d_mtx);
       d_connection.active++;
     }
+    Metrics::instance().incrementActiveConnection();
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_enter")
                   .add("client_fd", d_client_fd)
@@ -35,6 +37,7 @@ class ConnectionGuard {
       std::lock_guard lock(d_mtx);
       d_connection.active--;
     }
+    Metrics::instance().decrementActiveConnection();
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_exit")
                   .add("client_fd", d_client_fd)

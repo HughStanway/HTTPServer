@@ -10,6 +10,7 @@ add_library(httpserver_lib
     src/thread_pool.cpp
     src/periodic_idle_ip_cleanup.cpp
     src/config.cpp
+    src/metrics.cpp
 )
 
 include(FetchContent)

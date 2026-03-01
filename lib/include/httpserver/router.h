@@ -19,10 +19,6 @@ struct DynamicRoute {
 class Router {
  public:
   static Router& instance();
-  Router(const Router&) = delete;
-  Router& operator=(const Router&) = delete;
-  Router(Router&&) = delete;
-  Router& operator=(Router&&) = delete;
 
   void addRoute(const std::string&, const std::string&, RequestHandler);
   void addStaticDirectoryRoute(const std::string&, const std::string&);
@@ -30,6 +26,13 @@ class Router {
 
  private:
   Router() = default;
+  ~Router() = default;
+
+  Router(const Router&) = delete;
+  Router& operator=(const Router&) = delete;
+  Router(Router&&) = delete;
+  Router& operator=(Router&&) = delete;
+
   bool matchDynamic(const std::string&, const std::string&, HttpRequest&) const;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, RequestHandler>>
