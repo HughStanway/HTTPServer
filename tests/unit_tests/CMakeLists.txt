@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(unit_tests
     test_httpparser.cpp
     test_router.cpp
+    test_metrics.cpp
 )
 
 target_link_libraries(unit_tests

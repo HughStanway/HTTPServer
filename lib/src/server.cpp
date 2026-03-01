@@ -104,6 +104,7 @@ void send_bad_request_and_close(HTTPServer::StatusCode code, int client_fd) {
   HTTPServer::HttpResponse response = HTTPServer::Responses::badRequest(code);
   const std::string payload = response.serialize();
   send(client_fd, payload.c_str(), payload.size(), 0);
+  HTTPServer::Metrics::instance().recordResponseStatus(response.code);
   close(client_fd);
 }
 
@@ -465,6 +466,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
             HttpResponse response = Responses::badRequest(status);
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
+            Metrics::instance().recordResponseStatus(response.code);
             close(client_fd);
             return;
           }
@@ -477,6 +479,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
             std::string payload = response.serialize();
             send(client_fd, payload.c_str(), payload.size(), 0);
+            Metrics::instance().recordResponseStatus(response.code);
             parser.reset();
 
             close(client_fd);
