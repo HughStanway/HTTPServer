@@ -13,7 +13,7 @@
     ip cleanup (probably need to have config file todo this one) and rate limiting
 [x] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [x] research man pages for sys calls used by server in order to make the socket setup better for deployment
-[ ] server metrics
+[x] server metrics
 [ ] json response - need a json Reponse:: type similar to file::
 [ ] Compile as a proper library not just a local library
 [ ] Python wrapper similar to FastAPI

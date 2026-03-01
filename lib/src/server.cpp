@@ -418,6 +418,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
         HttpParser parser;
         std::string recvBuffer;
+        std::chrono::steady_clock::time_point start =
+            std::chrono::steady_clock::now();
         while (true) {
           char buffer[Config::get().kRecvBufferSize];
           int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
@@ -440,6 +442,8 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
             close(client_fd);
             return;
+          } else {
+            Metrics::instance().recordBytesReceived(bytes);
           }
 
           recvBuffer.append(buffer, bytes);
@@ -478,8 +482,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
                 Responses::redirection(request, Config::get().kPort);
 
             std::string payload = response.serialize();
-            send(client_fd, payload.c_str(), payload.size(), 0);
-            Metrics::instance().recordResponseStatus(response.code);
+            bytes = send(client_fd, payload.c_str(), payload.size(), 0);
             parser.reset();
 
             close(client_fd);
@@ -490,6 +493,17 @@ void Server::start_http_redirect(const Port& redirect_port) {
                                           .add("redirection_server", true)
                                           .add("client_redirected", true));
             return;
+
+            Metrics::instance().recordResponseStatus(response.code);
+            Metrics::instance().recordBytesSent(bytes);
+            Metrics::instance().incrementTotalRequests();
+
+            std::chrono::steady_clock::time_point end =
+                std::chrono::steady_clock::now();
+            std::chrono::milliseconds duration =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
+            Metrics::instance().recordRequestProcessingTime(duration);
           }
         }
       });
