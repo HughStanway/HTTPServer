@@ -8,6 +8,7 @@ add_library(httpserver_lib
     src/http_object.cpp
     src/http_response_builder.cpp
     src/router.cpp
+    src/route_matchers.cpp
     src/thread_pool.cpp
     src/periodic_idle_ip_cleanup.cpp
     src/config.cpp

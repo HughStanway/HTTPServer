@@ -23,11 +23,14 @@
 #include "port.h"
 #include "router.h"
 #include "thread_pool.h"
+#include "unique_fd.h"
 #include "utils.h"
 
 namespace HTTPServer {
 
 class Server {
+  using UniqueSSL_CTX = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
+
  public:
   explicit Server();
   explicit Server(const std::string& config_path);
@@ -40,11 +43,11 @@ class Server {
   void stop();
 
  private:
-  int server_fd{-1};
-  int redirection_server_fd{-1};
+  UniqueFd server_fd;
+  UniqueFd redirection_server_fd;
   std::atomic<bool> d_running{false};
   std::unique_ptr<ThreadPool> d_thread_pool;
-  SSL_CTX* ssl_ctx{nullptr};
+  UniqueSSL_CTX ssl_ctx{nullptr, SSL_CTX_free};
   std::mutex d_connected_ips_mtx;
   std::unordered_map<std::string, ConnectedIp> d_connected_ips;
   std::unique_ptr<PerioidIdleIpCleanup> d_periodic_idle_ip_cleanup;
