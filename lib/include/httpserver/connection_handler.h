@@ -10,8 +10,8 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "http_object.h"
 #include "connection_guard.h"
+#include "http_object.h"
 
 namespace HTTPServer {
 
