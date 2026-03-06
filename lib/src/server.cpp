@@ -10,6 +10,8 @@
 #include <iostream>
 #include <thread>
 
+#include "httpserver/connection_handler.h"
+
 namespace {
 
 HTTPServer::Server* g_activeServer = nullptr;
@@ -362,25 +364,28 @@ void Server::dispatch_client(int client_fd) {
 }
 
 void Server::handle_client(int client_fd, const std::string& client_ip) {
-  init_request_processor(
-      client_fd, client_ip,
+  ConnectionHandler handler(
+      client_fd, client_ip, false, nullptr,
       [client_fd](char* buf, size_t size) {
         return recv(client_fd, buf, size, 0);
       },
       [client_fd](const char* data, size_t size) {
         return send(client_fd, data, size, 0);
-      });
+      },
+      d_connected_ips_mtx, d_connected_ips);
+  handler.process();
 }
 
 void Server::handle_client(SSL* ssl, const std::string& client_ip) {
   int client_fd = SSL_get_fd(ssl);
-  init_request_processor(
-      client_fd, client_ip,
+  ConnectionHandler handler(
+      client_fd, client_ip, true, ssl,
       [ssl](char* buf, size_t size) { return SSL_read(ssl, buf, size); },
       [ssl](const char* data, size_t size) {
         return SSL_write(ssl, data, size);
       },
-      true, ssl);
+      d_connected_ips_mtx, d_connected_ips);
+  handler.process();
 }
 
 void Server::start_http_redirect(const Port& redirect_port) {
@@ -416,96 +421,17 @@ void Server::start_http_redirect(const Port& redirect_port) {
                                       .add("client_fd", client_fd)
                                       .add("redirection_server", true));
 
-        HttpParser parser;
-        std::string recvBuffer;
-        std::chrono::steady_clock::time_point start =
-            std::chrono::steady_clock::now();
-        while (true) {
-          char buffer[Config::get().kRecvBufferSize];
-          int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-          if (bytes <= 0) {
-            if (bytes == 0)
-              LOG_EVENT(LogLevel::INFO, LogEvent("client_closed_connection")
-                                            .add("client_fd", client_fd)
-                                            .add("ip", client_ip)
-                                            .add("redirection_server", true));
-            else if (errno == EAGAIN || errno == EWOULDBLOCK)
-              LOG_EVENT(LogLevel::INFO, LogEvent("client_idle_timeout")
-                                            .add("client_fd", client_fd)
-                                            .add("ip", client_ip)
-                                            .add("redirection_server", true));
-            else
-              LOG_EVENT(LogLevel::ERROR, LogEvent("recv_error")
-                                             .add("client_fd", client_fd)
-                                             .add("ip", client_ip)
-                                             .add("redirection_server", true));
+        auto readFunc = [client_fd](char* buf, size_t size) {
+          return recv(client_fd, buf, size, 0);
+        };
+        auto writeFunc = [client_fd](const char* data, size_t size) {
+          return send(client_fd, data, size, 0);
+        };
 
-            close(client_fd);
-            return;
-          } else {
-            Metrics::instance().recordBytesReceived(bytes);
-          }
-
-          recvBuffer.append(buffer, bytes);
-
-          std::string_view view(recvBuffer);
-          ParseResult result = parser.parse(view);
-
-          // remove consumed bytes
-          recvBuffer.erase(0, recvBuffer.size() - view.size());
-
-          if (result == ParseResult::NEED_MORE_DATA) {
-            continue;
-          }
-
-          if (result == ParseResult::PARSE_ERROR) {
-            ParseError err = parser.error();
-            StatusCode status = parseErrorToStatusCode(err);
-            LOG_EVENT(LogLevel::ERROR,
-                      LogEvent("bad_request")
-                          .add("client_fd", client_fd)
-                          .add("ip", client_ip)
-                          .add("redirection_server", true)
-                          .add("parse_error", static_cast<int>(err)));
-            HttpResponse response = Responses::badRequest(status);
-            std::string payload = response.serialize();
-            send(client_fd, payload.c_str(), payload.size(), 0);
-            Metrics::instance().recordResponseStatus(response.code);
-            close(client_fd);
-            return;
-          }
-
-          if (result == ParseResult::REQUEST_COMPLETE) {
-            HttpRequest request = parser.takeRequest();
-
-            HttpResponse response =
-                Responses::redirection(request, Config::get().kPort);
-
-            std::string payload = response.serialize();
-            bytes = send(client_fd, payload.c_str(), payload.size(), 0);
-            parser.reset();
-
-            close(client_fd);
-
-            LOG_EVENT(LogLevel::INFO, LogEvent("client_disconnected")
-                                          .add("client_fd", client_fd)
-                                          .add("ip", client_ip)
-                                          .add("redirection_server", true)
-                                          .add("client_redirected", true));
-            return;
-
-            Metrics::instance().recordResponseStatus(response.code);
-            Metrics::instance().recordBytesSent(bytes);
-            Metrics::instance().incrementTotalRequests();
-
-            std::chrono::steady_clock::time_point end =
-                std::chrono::steady_clock::now();
-            std::chrono::milliseconds duration =
-                std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                      start);
-            Metrics::instance().recordRequestProcessingTime(duration);
-          }
-        }
+        ConnectionHandler handler(client_fd, client_ip, false, nullptr,
+                                  readFunc, writeFunc, d_connected_ips_mtx,
+                                  d_connected_ips, true);
+        handler.process();
       });
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_stopped")
                                 .add("port", redirect_port.toString()));

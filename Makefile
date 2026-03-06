@@ -95,8 +95,7 @@ docs: docs-deps
 
 docs-clean:
 	@echo "==> Cleaning docs build output..."
-	@rm -rf $(DOCS_BUILD_DIR)
-	@rm -rf $(DOCS_API_DIR)
+	@rm -rf $(DOCS_DIR)
 
 help:
 	@printf "Usage: make [target]\n\n"
