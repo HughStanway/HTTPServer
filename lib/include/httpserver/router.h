@@ -2,19 +2,15 @@
 #define ROUTER_H
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "http_object.h"
+#include "route_matchers.h"
 
 namespace HTTPServer {
-
-using RequestHandler = std::function<HttpResponse(const HttpRequest&)>;
-
-struct DynamicRoute {
-  std::string d_pattern;
-  RequestHandler d_handler;
-};
 
 class Router {
  public:
@@ -33,11 +29,13 @@ class Router {
   Router(Router&&) = delete;
   Router& operator=(Router&&) = delete;
 
-  bool matchDynamic(const std::string&, const std::string&, HttpRequest&) const;
-  std::unordered_map<std::string,
-                     std::unordered_map<std::string, RequestHandler>>
-      d_routes;
-  std::unordered_map<std::string, std::vector<DynamicRoute>> d_dynamicRoutes;
+  struct MethodMatchers {
+    std::vector<std::unique_ptr<IRouteMatcher>> exact;
+    std::vector<std::unique_ptr<IRouteMatcher>> dynamic;
+    std::vector<std::unique_ptr<IRouteMatcher>> wildcard;
+  };
+
+  std::unordered_map<std::string, MethodMatchers> d_matchers;
 };
 
 }  // namespace HTTPServer

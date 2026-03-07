@@ -4,15 +4,18 @@
 #include <chrono>
 #include <mutex>
 
+#include "config.h"
+#include "event_dispatcher.h"
+#include "events.h"
 #include "log_event.h"
 #include "logger.h"
-#include "metrics.h"
 
 namespace HTTPServer {
 
-struct ConnectedIp {
+struct ConnectedIp {  // This should be moved and tokens should have a separate
+                      // struct - understand where this struct is used first
   int active = 0;
-  double tokens = 10.0;
+  double tokens = Config::get().kMaxTokens;
   std::chrono::steady_clock::time_point last_seen =
       std::chrono::steady_clock::now();
 };
@@ -25,7 +28,7 @@ class ConnectionGuard {
       std::lock_guard lock(d_mtx);
       d_connection.active++;
     }
-    Metrics::instance().incrementActiveConnection();
+    EventDispatcher::instance().dispatch(ConnectionOpenedEvent{});
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_enter")
                   .add("client_fd", d_client_fd)
@@ -37,7 +40,7 @@ class ConnectionGuard {
       std::lock_guard lock(d_mtx);
       d_connection.active--;
     }
-    Metrics::instance().decrementActiveConnection();
+    EventDispatcher::instance().dispatch(ConnectionClosedEvent{});
     LOG_EVENT(LogLevel::INFO,
               LogEvent("connection_guard_exit")
                   .add("client_fd", d_client_fd)

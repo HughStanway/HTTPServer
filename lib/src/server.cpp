@@ -10,6 +10,8 @@
 #include <iostream>
 #include <thread>
 
+#include "httpserver/connection_handler.h"
+
 namespace {
 
 HTTPServer::Server* g_activeServer = nullptr;
@@ -112,12 +114,11 @@ void send_bad_request_and_close(HTTPServer::StatusCode code, int client_fd) {
 
 namespace HTTPServer {
 
-Server::Server() : server_fd(-1), redirection_server_fd(-1) {
+Server::Server() {
   LOG_EVENT(LogLevel::INFO, LogEvent("startup_default_config"));
 }
 
-Server::Server(const std::string& config_path)
-    : server_fd(-1), redirection_server_fd(-1) {
+Server::Server(const std::string& config_path) {
   LOG_EVENT(LogLevel::INFO,
             LogEvent("startup_loading_config").add("config_path", config_path));
   try {
@@ -142,16 +143,16 @@ void Server::stop() {
   if (!d_running) return;
   d_running = false;
 
-  if (server_fd >= 0) {
-    close(server_fd);
+  if (server_fd.is_valid()) {
+    server_fd.reset();
   }
 
-  if (redirection_server_fd >= 0) {
-    close(redirection_server_fd);
+  if (redirection_server_fd.is_valid()) {
+    redirection_server_fd.reset();
   }
 
   d_periodic_idle_ip_cleanup->stop();
-  cleanup_ssl_context();
+  ssl_ctx.reset();
   d_thread_pool->stop();
 }
 
@@ -166,15 +167,16 @@ bool Server::init_ssl_context() {
   SSL_load_error_strings();
   OpenSSL_add_ssl_algorithms();
 
-  ssl_ctx = SSL_CTX_new(TLS_server_method());
+  ssl_ctx.reset(SSL_CTX_new(TLS_server_method()));
   if (!ssl_ctx) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_context_create_failed"));
     return false;
   }
 
-  if (SSL_CTX_use_certificate_file(ssl_ctx, Config::get().kCertFile.c_str(),
+  if (SSL_CTX_use_certificate_file(ssl_ctx.get(),
+                                   Config::get().kCertFile.c_str(),
                                    SSL_FILETYPE_PEM) <= 0 ||
-      SSL_CTX_use_PrivateKey_file(ssl_ctx, Config::get().kKeyFile.c_str(),
+      SSL_CTX_use_PrivateKey_file(ssl_ctx.get(), Config::get().kKeyFile.c_str(),
                                   SSL_FILETYPE_PEM) <= 0) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_cert_or_key_load_failed")
                                    .add("cert_file", Config::get().kCertFile)
@@ -182,41 +184,33 @@ bool Server::init_ssl_context() {
     return false;
   }
 
-  if (!SSL_CTX_check_private_key(ssl_ctx)) {
+  if (!SSL_CTX_check_private_key(ssl_ctx.get())) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("ssl_private_key_mismatch")
                                    .add("cert_file", Config::get().kCertFile)
                                    .add("key_file", Config::get().kKeyFile));
     return false;
   }
 
-  SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_2_VERSION);
-  SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-                                   SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
-  SSL_CTX_set_cipher_list(ssl_ctx,
+  SSL_CTX_set_min_proto_version(ssl_ctx.get(), TLS1_2_VERSION);
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+                                         SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+  SSL_CTX_set_cipher_list(ssl_ctx.get(),
                           "ECDHE-ECDSA-AES256-GCM-SHA384:"
                           "ECDHE-RSA-AES256-GCM-SHA384:"
                           "ECDHE-ECDSA-CHACHA20-POLY1305:"
                           "ECDHE-RSA-CHACHA20-POLY1305:"
                           "ECDHE-ECDSA-AES128-GCM-SHA256:"
                           "ECDHE-RSA-AES128-GCM-SHA256");
-  SSL_CTX_set_ciphersuites(ssl_ctx,
+  SSL_CTX_set_ciphersuites(ssl_ctx.get(),
                            "TLS_AES_256_GCM_SHA384:"
                            "TLS_CHACHA20_POLY1305_SHA256:"
                            "TLS_AES_128_GCM_SHA256");
-  SSL_CTX_set_options(ssl_ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
-  SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_COMPRESSION);
-  SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_SERVER);
-  SSL_CTX_set_timeout(ssl_ctx, 300);  // 5 minutes
-  SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_RENEGOTIATION);
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_COMPRESSION);
+  SSL_CTX_set_session_cache_mode(ssl_ctx.get(), SSL_SESS_CACHE_SERVER);
+  SSL_CTX_set_timeout(ssl_ctx.get(), 300);  // 5 minutes
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_RENEGOTIATION);
   return true;
-}
-
-void Server::cleanup_ssl_context() {
-  if (!ssl_ctx) return;
-
-  SSL_CTX_free(ssl_ctx);
-  ssl_ctx = nullptr;
-  EVP_cleanup();
 }
 
 void Server::start() {
@@ -238,10 +232,10 @@ void Server::start() {
   address.sin6_addr = in6addr_any;
   address.sin6_port = Config::get().kPort.toNetwork();
 
-  server_fd = create_listening_socket(reinterpret_cast<sockaddr*>(&address),
-                                      sizeof(address));
+  server_fd.reset(create_listening_socket(reinterpret_cast<sockaddr*>(&address),
+                                          sizeof(address)));
 
-  if (server_fd < 0) {
+  if (!server_fd.is_valid()) {
     LOG_EVENT(LogLevel::ERROR,
               LogEvent("main_socket_create_failed")
                   .add("port", Config::get().kPort.toString()));
@@ -286,8 +280,8 @@ void Server::start() {
 
   LOG_EVENT(LogLevel::INFO, LogEvent("server_running")
                                 .add("port", Config::get().kPort.toString())
-                                .add("fd", server_fd));
-  accept_loop<sockaddr_in6>(server_fd, d_running, [this](int client_fd) {
+                                .add("fd", server_fd.get()));
+  accept_loop<sockaddr_in6>(server_fd.get(), d_running, [this](int client_fd) {
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
                               SO_RCVTIMEO);
     set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
@@ -346,7 +340,7 @@ void Server::dispatch_client(int client_fd) {
     return;
   }
 
-  SSL* ssl = SSL_new(ssl_ctx);
+  SSL* ssl = SSL_new(ssl_ctx.get());
   SSL_set_fd(ssl, client_fd);
 
   if (SSL_accept(ssl) <= 0) {
@@ -362,25 +356,28 @@ void Server::dispatch_client(int client_fd) {
 }
 
 void Server::handle_client(int client_fd, const std::string& client_ip) {
-  init_request_processor(
-      client_fd, client_ip,
+  ConnectionHandler handler(
+      client_fd, client_ip, false, nullptr,
       [client_fd](char* buf, size_t size) {
         return recv(client_fd, buf, size, 0);
       },
       [client_fd](const char* data, size_t size) {
         return send(client_fd, data, size, 0);
-      });
+      },
+      d_connected_ips_mtx, d_connected_ips);
+  handler.process();
 }
 
 void Server::handle_client(SSL* ssl, const std::string& client_ip) {
   int client_fd = SSL_get_fd(ssl);
-  init_request_processor(
-      client_fd, client_ip,
+  ConnectionHandler handler(
+      client_fd, client_ip, true, ssl,
       [ssl](char* buf, size_t size) { return SSL_read(ssl, buf, size); },
       [ssl](const char* data, size_t size) {
         return SSL_write(ssl, data, size);
       },
-      true, ssl);
+      d_connected_ips_mtx, d_connected_ips);
+  handler.process();
 }
 
 void Server::start_http_redirect(const Port& redirect_port) {
@@ -391,10 +388,10 @@ void Server::start_http_redirect(const Port& redirect_port) {
   address.sin6_addr = in6addr_any;
   address.sin6_port = redirect_port.toNetwork();
 
-  redirection_server_fd = create_listening_socket(
-      reinterpret_cast<sockaddr*>(&address), sizeof(address));
+  redirection_server_fd.reset(create_listening_socket(
+      reinterpret_cast<sockaddr*>(&address), sizeof(address)));
 
-  if (redirection_server_fd < 0) {
+  if (!redirection_server_fd.is_valid()) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("redirection_server_start_failed")
                                    .add("port", redirect_port.toString()));
     return;
@@ -402,9 +399,9 @@ void Server::start_http_redirect(const Port& redirect_port) {
 
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_running")
                                 .add("port", redirect_port.toString())
-                                .add("fd", redirection_server_fd));
+                                .add("fd", redirection_server_fd.get()));
   accept_loop<sockaddr_in6>(
-      redirection_server_fd, d_running, [this](int client_fd) {
+      redirection_server_fd.get(), d_running, [this](int client_fd) {
         std::string client_ip = extract_ip(client_fd);
 
         set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
@@ -416,96 +413,17 @@ void Server::start_http_redirect(const Port& redirect_port) {
                                       .add("client_fd", client_fd)
                                       .add("redirection_server", true));
 
-        HttpParser parser;
-        std::string recvBuffer;
-        std::chrono::steady_clock::time_point start =
-            std::chrono::steady_clock::now();
-        while (true) {
-          char buffer[Config::get().kRecvBufferSize];
-          int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-          if (bytes <= 0) {
-            if (bytes == 0)
-              LOG_EVENT(LogLevel::INFO, LogEvent("client_closed_connection")
-                                            .add("client_fd", client_fd)
-                                            .add("ip", client_ip)
-                                            .add("redirection_server", true));
-            else if (errno == EAGAIN || errno == EWOULDBLOCK)
-              LOG_EVENT(LogLevel::INFO, LogEvent("client_idle_timeout")
-                                            .add("client_fd", client_fd)
-                                            .add("ip", client_ip)
-                                            .add("redirection_server", true));
-            else
-              LOG_EVENT(LogLevel::ERROR, LogEvent("recv_error")
-                                             .add("client_fd", client_fd)
-                                             .add("ip", client_ip)
-                                             .add("redirection_server", true));
+        auto readFunc = [client_fd](char* buf, size_t size) {
+          return recv(client_fd, buf, size, 0);
+        };
+        auto writeFunc = [client_fd](const char* data, size_t size) {
+          return send(client_fd, data, size, 0);
+        };
 
-            close(client_fd);
-            return;
-          } else {
-            Metrics::instance().recordBytesReceived(bytes);
-          }
-
-          recvBuffer.append(buffer, bytes);
-
-          std::string_view view(recvBuffer);
-          ParseResult result = parser.parse(view);
-
-          // remove consumed bytes
-          recvBuffer.erase(0, recvBuffer.size() - view.size());
-
-          if (result == ParseResult::NEED_MORE_DATA) {
-            continue;
-          }
-
-          if (result == ParseResult::PARSE_ERROR) {
-            ParseError err = parser.error();
-            StatusCode status = parseErrorToStatusCode(err);
-            LOG_EVENT(LogLevel::ERROR,
-                      LogEvent("bad_request")
-                          .add("client_fd", client_fd)
-                          .add("ip", client_ip)
-                          .add("redirection_server", true)
-                          .add("parse_error", static_cast<int>(err)));
-            HttpResponse response = Responses::badRequest(status);
-            std::string payload = response.serialize();
-            send(client_fd, payload.c_str(), payload.size(), 0);
-            Metrics::instance().recordResponseStatus(response.code);
-            close(client_fd);
-            return;
-          }
-
-          if (result == ParseResult::REQUEST_COMPLETE) {
-            HttpRequest request = parser.takeRequest();
-
-            HttpResponse response =
-                Responses::redirection(request, Config::get().kPort);
-
-            std::string payload = response.serialize();
-            bytes = send(client_fd, payload.c_str(), payload.size(), 0);
-            parser.reset();
-
-            close(client_fd);
-
-            LOG_EVENT(LogLevel::INFO, LogEvent("client_disconnected")
-                                          .add("client_fd", client_fd)
-                                          .add("ip", client_ip)
-                                          .add("redirection_server", true)
-                                          .add("client_redirected", true));
-            return;
-
-            Metrics::instance().recordResponseStatus(response.code);
-            Metrics::instance().recordBytesSent(bytes);
-            Metrics::instance().incrementTotalRequests();
-
-            std::chrono::steady_clock::time_point end =
-                std::chrono::steady_clock::now();
-            std::chrono::milliseconds duration =
-                std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                      start);
-            Metrics::instance().recordRequestProcessingTime(duration);
-          }
-        }
+        ConnectionHandler handler(client_fd, client_ip, false, nullptr,
+                                  readFunc, writeFunc, d_connected_ips_mtx,
+                                  d_connected_ips, true);
+        handler.process();
       });
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_stopped")
                                 .add("port", redirect_port.toString()));

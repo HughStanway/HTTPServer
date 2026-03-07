@@ -16,10 +16,34 @@ Router& Router::instance() {
 
 void Router::addRoute(const std::string& method, const std::string& path,
                       RequestHandler handler) {
-  if (path.find('{') != std::string::npos) {
-    d_dynamicRoutes[method].push_back({path, handler});
+  auto& matchers = d_matchers[method];
+  if (path.find('*') != std::string::npos) {
+    for (auto& m : matchers.wildcard) {
+      if (m->getPattern() == path) {
+        m = std::make_unique<WildcardRouteMatcher>(path, handler);
+        return;
+      }
+    }
+    matchers.wildcard.push_back(
+        std::make_unique<WildcardRouteMatcher>(path, handler));
+  } else if (path.find('{') != std::string::npos) {
+    for (auto& m : matchers.dynamic) {
+      if (m->getPattern() == path) {
+        m = std::make_unique<DynamicRouteMatcher>(path, handler);
+        return;
+      }
+    }
+    matchers.dynamic.push_back(
+        std::make_unique<DynamicRouteMatcher>(path, handler));
   } else {
-    d_routes[method][path] = handler;
+    for (auto& m : matchers.exact) {
+      if (m->getPattern() == path) {
+        m = std::make_unique<ExactRouteMatcher>(path, handler);
+        return;
+      }
+    }
+    matchers.exact.push_back(
+        std::make_unique<ExactRouteMatcher>(path, handler));
   }
 }
 
@@ -38,82 +62,47 @@ void Router::addStaticDirectoryRoute(const std::string& urlBase,
   });
 }
 
-bool Router::matchDynamic(const std::string& pattern, const std::string& path,
-                          HttpRequest& req) const {
-  std::stringstream p(pattern), u(path);
-  std::string segP, segU;
-
-  while (std::getline(p, segP, '/') && std::getline(u, segU, '/')) {
-    if (!segP.empty() && segP.front() == '{' && segP.back() == '}') {
-      std::string key = segP.substr(1, segP.size() - 2);
-      req.params[key] = segU;
-      continue;
-    }
-
-    if (segP != segU) {
-      req.params.clear();
-      return false;
-    }
-  }
-
-  // Ensure no extra segments exist in path
-  if (std::getline(u, segU, '/')) {
-    req.params.clear();
-    return false;
-  }
-
-  // Ensure no pattern segments left unmatched
-  if (std::getline(p, segP, '/')) {
-    req.params.clear();
-    return false;
-  }
-
-  return true;
-}
-
 HttpResponse Router::route(HttpRequest& request) const {
-  auto methodIt = d_routes.find(request.method);
-  if (methodIt == d_routes.end()) {
+  auto methodIt = d_matchers.find(request.method);
+  if (methodIt == d_matchers.end()) {
     return Responses::notFound(request);
   }
 
-  const auto& pathMap = methodIt->second;
+  const auto& matchers = methodIt->second;
 
-  // Try exact match first
-  auto pathIt = pathMap.find(request.path);
-  if (pathIt != pathMap.end()) {
-    return pathIt->second(request);
-  }
-
-  // Try dynamic routes /{uuid}
-  auto it = d_dynamicRoutes.find(request.method);
-  if (it != d_dynamicRoutes.end()) {
-    for (auto& dynamicRoute : it->second) {
-      if (matchDynamic(dynamicRoute.d_pattern, request.path, request)) {
-        return dynamicRoute.d_handler(request);
-      }
+  // 1. Try exact matches first
+  for (const auto& matcher : matchers.exact) {
+    if (matcher->match(request.path, request)) {
+      return matcher->getHandler()(request);
     }
   }
 
-  // Try wildcard /* static-prefix routes
-  const RequestHandler* bestHandler = nullptr;
+  // 2. Try dynamic routes next
+  for (const auto& matcher : matchers.dynamic) {
+    if (matcher->match(request.path, request)) {
+      return matcher->getHandler()(request);
+    }
+  }
+
+  // 3. Try wildcard routes (longest prefix wins)
+  const IRouteMatcher* bestMatcher = nullptr;
   size_t bestPrefixLen = 0;
 
-  for (const auto& [pattern, handler] : pathMap) {
-    if (pattern.size() > 1 && pattern.ends_with("*")) {
-      std::string prefix = pattern.substr(0, pattern.size() - 1);
-      if (request.path.starts_with(prefix)) {
-        if (prefix.size() > bestPrefixLen) {
-          bestPrefixLen = prefix.size();
-          bestHandler = &handler;
-        }
+  for (const auto& matcher : matchers.wildcard) {
+    if (matcher->match(request.path, request)) {
+      auto wildcardMatcher =
+          static_cast<const WildcardRouteMatcher*>(matcher.get());
+      if (wildcardMatcher->getPrefixLength() >= bestPrefixLen) {
+        bestPrefixLen = wildcardMatcher->getPrefixLength();
+        bestMatcher = matcher.get();
       }
     }
   }
 
-  if (bestHandler) {
-    return (*bestHandler)(request);
+  if (bestMatcher) {
+    return bestMatcher->getHandler()(request);
   }
+
   return Responses::notFound(request);
 }
 

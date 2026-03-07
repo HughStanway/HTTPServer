@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 
+#include "events.h"
 #include "http_object.h"
 
 namespace HTTPServer {
@@ -21,9 +22,11 @@ struct MetricsSnapshot {
   uint64_t d_totalRequestProcessingTimeMs;
 };
 
-class Metrics {
+class Metrics : public IObserver {
  public:
   static Metrics& instance();
+
+  void onEvent(const Event& event) override;
 
   void incrementActiveConnection();
   void decrementActiveConnection();
