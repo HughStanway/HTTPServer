@@ -3,15 +3,18 @@
 #include <unistd.h>
 
 #include "httpserver/config.h"
+#include "httpserver/event_dispatcher.h"
+#include "httpserver/events.h"
 #include "httpserver/http_parser.h"
 #include "httpserver/http_response_builder.h"
 #include "httpserver/log_event.h"
 #include "httpserver/logger.h"
-#include "httpserver/metrics.h"
 #include "httpserver/router.h"
 #include "httpserver/utils.h"
 
 namespace HTTPServer {
+
+enum class RequestState { Idle, Receiving };
 
 ConnectionHandler::ConnectionHandler(
     int client_fd, const std::string& client_ip, bool isTLS, SSL* ssl,
@@ -87,8 +90,7 @@ void ConnectionHandler::process() {
   std::string recvBuffer;
   bool keepAlive = true;
   int requests_handled = 0;
-
-  enum class RequestState { Idle, Receiving };
+  int total_request_bytes_received = 0;
   RequestState request_state = RequestState::Idle;
   std::chrono::steady_clock::time_point request_start;
 
@@ -96,6 +98,7 @@ void ConnectionHandler::process() {
     if (request_state == RequestState::Idle) {
       request_state = RequestState::Receiving;
       request_start = std::chrono::steady_clock::now();
+      total_request_bytes_received = 0;
     }
 
     char buffer[Config::get().kRecvBufferSize];
@@ -118,8 +121,8 @@ void ConnectionHandler::process() {
                                        .add("tls", isTLS_));
       break;
     } else {
-      Metrics::instance().recordBytesReceived(bytes);
       recvBuffer.append(buffer, bytes);
+      total_request_bytes_received += bytes;
     }
 
     if (request_state == RequestState::Receiving) {
@@ -132,8 +135,9 @@ void ConnectionHandler::process() {
                                        .add("tls", isTLS_));
         HttpResponse resp = Responses::badRequest(StatusCode::RequestTimeout);
         auto payload = resp.serialize();
-        writeFunc_(payload.c_str(), payload.size());
-        Metrics::instance().recordResponseStatus(resp.code);
+        bytes = writeFunc_(payload.c_str(), payload.size());
+        EventDispatcher::instance().dispatch(RequestProcessedEvent(
+            resp, request_start, total_request_bytes_received, bytes));
         break;
       }
     }
@@ -167,8 +171,10 @@ void ConnectionHandler::process() {
                     .add("parse_error", static_cast<int>(err)));
       HttpResponse resp = Responses::badRequest(status);
       auto payload = resp.serialize();
-      writeFunc_(payload.c_str(), payload.size());
-      Metrics::instance().recordResponseStatus(resp.code);
+      bytes = writeFunc_(payload.c_str(), payload.size());
+
+      EventDispatcher::instance().dispatch(RequestProcessedEvent(
+          resp, request_start, total_request_bytes_received, bytes));
       break;
     }
 
@@ -189,8 +195,10 @@ void ConnectionHandler::process() {
                                          Config::get().kMaxKeepAliveRequests));
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
-      writeFunc_(payload.c_str(), payload.size());
-      Metrics::instance().recordResponseStatus(resp.code);
+      bytes = writeFunc_(payload.c_str(), payload.size());
+
+      EventDispatcher::instance().dispatch(RequestProcessedEvent(
+          resp, request_start, total_request_bytes_received, bytes));
       break;
     }
 
@@ -201,8 +209,10 @@ void ConnectionHandler::process() {
                                     .add("tls", isTLS_));
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
-      writeFunc_(payload.c_str(), payload.size());
-      Metrics::instance().recordResponseStatus(resp.code);
+      bytes = writeFunc_(payload.c_str(), payload.size());
+
+      EventDispatcher::instance().dispatch(RequestProcessedEvent(
+          resp, request_start, total_request_bytes_received, bytes));
       break;
     }
 
@@ -234,23 +244,16 @@ void ConnectionHandler::process() {
                                        .add("ip", client_ip_)
                                        .add("tls", isTLS_));
       }
-    } else {
-      Metrics::instance().recordBytesSent(bytes);
-      Metrics::instance().recordResponseStatus(response.code);
     }
 
     if (request_state == RequestState::Receiving) {
-      auto request_end = std::chrono::steady_clock::now();
-      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-          request_end - request_start);
-
-      Metrics::instance().recordRequestProcessingTime(duration);
+      EventDispatcher::instance().dispatch(RequestProcessedEvent(
+          response, request_start, total_request_bytes_received, bytes));
       request_state = RequestState::Idle;
     }
 
     parser.reset();
     requests_handled++;
-    Metrics::instance().incrementTotalRequests();
   }
 
   if (isTLS_ && ssl_) {

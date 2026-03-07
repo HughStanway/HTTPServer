@@ -13,6 +13,7 @@ add_library(httpserver_lib
     src/periodic_idle_ip_cleanup.cpp
     src/config.cpp
     src/metrics.cpp
+    src/event_dispatcher.cpp
 )
 
 include(FetchContent)

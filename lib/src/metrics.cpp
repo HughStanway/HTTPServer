@@ -1,5 +1,7 @@
 #include "httpserver/metrics.h"
 
+#include "httpserver/event_dispatcher.h"
+
 namespace HTTPServer {
 
 Metrics& Metrics::instance() {
@@ -16,7 +18,33 @@ Metrics::Metrics()
       d_responses5xx(0),
       d_totalBytesReceived(0),
       d_totalBytesSent(0),
-      d_totalRequestProcessingTimeMs(0) {}
+      d_totalRequestProcessingTimeMs(0) {
+  EventDispatcher::instance().subscribe(this);
+}
+
+void Metrics::onEvent(const Event& event) {
+  if (dynamic_cast<const ConnectionOpenedEvent*>(&event)) {
+    incrementActiveConnection();
+  } else if (dynamic_cast<const ConnectionClosedEvent*>(&event)) {
+    decrementActiveConnection();
+  } else if (auto e = dynamic_cast<const RequestProcessedEvent*>(&event)) {
+    incrementTotalRequests();
+
+    if (e->processing_time_ms) {
+      recordRequestProcessingTime(*e->processing_time_ms);
+    }
+
+    if (e->bytes_received) {
+      recordBytesReceived(*e->bytes_received);
+    }
+
+    if (e->bytes_sent) {
+      recordBytesSent(*e->bytes_sent);
+    }
+
+    recordResponseStatus(e->response.code);
+  }
+}
 
 void Metrics::incrementActiveConnection() {
   d_activeConnections.fetch_add(1, std::memory_order_relaxed);
