@@ -58,6 +58,22 @@ Notes:
 - Tests use GoogleTest and are added via CMake.
 - Use `-DENABLE_SANITIZERS=ON` when configuring to enable sanitizers (if supported by your toolchain).
 
+## Installation
+
+You can install the library to your system to use it in other projects using the provided installation script:
+
+```bash
+./scripts/install_library.sh
+```
+
+By default, it installs to `/usr/local`. You can specify a custom prefix as an argument:
+
+```bash
+./scripts/install_library.sh /path/to/custom/prefix
+```
+
+The script will build only the library components and headers, excluding tests and the example application for a faster installation.
+
 ## Running the example server
 
 After building with `make build`, the example binary is generated at `build/src/http_server`. By default it binds to port 443 using HTTPS and redirects HTTP requests on port 80. First create a `.env` directory in the root and generate a valid  `cert.pem` and `key.pem` file. Then, run:
