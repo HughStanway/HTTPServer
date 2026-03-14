@@ -59,8 +59,8 @@ def render_api_index(headers: list[str]) -> str:
         "The project is organized into several key directories:",
         "",
         "* ``lib/``: Core library source code.",
-        "    * ``lib/include/httpserver/``: Public header files defining the API.",
-        "    * ``lib/src/``: Implementation files for the library logic.",
+        "    * ``lib/include/httpserver``: Public umbrella header file.",
+        "    * ``lib/src/httpserver_impl/``: Module-specific implementation and headers.",
         "* ``src/``: Entry point for the example HTTP server application.",
         "* ``public/``: Directory containing static assets (HTML, CSS, JS) used by the example server.",
         "* ``tests/``: Suite of unit tests (GoogleTest) and integration tests (Pytest).",
@@ -85,7 +85,7 @@ def render_api_index(headers: list[str]) -> str:
         "* **Log Level** (``log_level.h``): Defines severity levels (INFO, WARN, ERROR) for the logging system.",
         "* **Utilities** (``utils.h``): Shared helper functions for URI decoding, MIME-type lookup, and more.",
         "* **Metrics** (``metrics.h``): Tracks server-level performance data including active connections, request counts, response statuses, and latency.",
-        "* **Umbrella Header** (``httpserver.h``): A single header including most common library components.",
+        "* **Umbrella Header** (``httpserver``): A single header including most common library components.",
         "",
         "Detailed API",
         "------------",
@@ -210,12 +210,18 @@ The library exports its targets, allowing you to use ``find_package()`` in your 
 Including Headers
 ~~~~~~~~~~~~~~~~~
 
-You can then include any of the library's headers in your source code:
+The easiest way to use the library is via the umbrella header:
 
 .. code-block:: cpp
 
-   #include <httpserver/core/server.h>
-   #include <httpserver/http/http_parser.h>
+   #include <httpserver>
+
+You can also include specific module headers if needed:
+
+.. code-block:: cpp
+
+   #include <httpserver_impl/core/server.h>
+   #include <httpserver_impl/http/http_parser.h>
 
    // ... your code ...
 """

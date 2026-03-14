@@ -1,35 +1,35 @@
 #pragma once
 
 // Core component
-#include <httpserver/core/server.h>
-#include <httpserver/core/connection_handler.h>
-#include <httpserver/core/connection_guard.h>
+#include <httpserver_impl/core/server.h>
+#include <httpserver_impl/core/connection_handler.h>
+#include <httpserver_impl/core/connection_guard.h>
 
 // HTTP component
-#include <httpserver/http/http_object.h>
-#include <httpserver/http/http_parser.h>
-#include <httpserver/http/http_response_builder.h>
+#include <httpserver_impl/http/http_object.h>
+#include <httpserver_impl/http/http_parser.h>
+#include <httpserver_impl/http/http_response_builder.h>
 
 // Routing component
-#include <httpserver/routing/router.h>
-#include <httpserver/routing/route_matchers.h>
+#include <httpserver_impl/routing/router.h>
+#include <httpserver_impl/routing/route_matchers.h>
 
 // Events component
-#include <httpserver/events/event_dispatcher.h>
-#include <httpserver/events/events.h>
+#include <httpserver_impl/events/event_dispatcher.h>
+#include <httpserver_impl/events/events.h>
 
 // Monitoring component
-#include <httpserver/monitoring/logger.h>
-#include <httpserver/monitoring/metrics.h>
-#include <httpserver/monitoring/log_event.h>
-#include <httpserver/monitoring/log_level.h>
+#include <httpserver_impl/monitoring/logger.h>
+#include <httpserver_impl/monitoring/metrics.h>
+#include <httpserver_impl/monitoring/log_event.h>
+#include <httpserver_impl/monitoring/log_level.h>
 
 // Utils component
-#include <httpserver/utils/utils.h>
-#include <httpserver/utils/port.h>
-#include <httpserver/utils/periodic_idle_ip_cleanup.h>
-#include <httpserver/utils/config.h>
-#include <httpserver/utils/unique_fd.h>
+#include <httpserver_impl/utils/utils.h>
+#include <httpserver_impl/utils/port.h>
+#include <httpserver_impl/utils/periodic_idle_ip_cleanup.h>
+#include <httpserver_impl/utils/config.h>
+#include <httpserver_impl/utils/unique_fd.h>
 
 // Threading component
-#include <httpserver/threading/thread_pool.h>
+#include <httpserver_impl/threading/thread_pool.h>
