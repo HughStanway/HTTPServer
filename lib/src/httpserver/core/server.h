@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <httpserver/core/connection_guard.h>
+#include <httpserver/core/connection_manager.h>
 #include <httpserver/http/http_object.h>
 #include <httpserver/http/http_parser.h>
 #include <httpserver/http/http_response_builder.h>
@@ -21,7 +21,6 @@
 
 #include <atomic>
 #include <memory>
-#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -47,8 +46,6 @@ class Server {
   std::atomic<bool> d_running{false};
   std::unique_ptr<ThreadPool> d_thread_pool;
   UniqueSSL_CTX ssl_ctx{nullptr, SSL_CTX_free};
-  std::mutex d_connected_ips_mtx;
-  std::unordered_map<std::string, ConnectedIp> d_connected_ips;
   std::unique_ptr<PerioidIdleIpCleanup> d_periodic_idle_ip_cleanup;
 
   template <typename Address, typename Handler>

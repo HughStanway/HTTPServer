@@ -270,8 +270,7 @@ void Server::start() {
   }
 
   // 5. Start Idle IP periodic cleanup
-  d_periodic_idle_ip_cleanup = std::make_unique<PerioidIdleIpCleanup>(
-      d_connected_ips, d_connected_ips_mtx);
+  d_periodic_idle_ip_cleanup = std::make_unique<PerioidIdleIpCleanup>();
 
   // 6. Allow connections
   d_running = true;
@@ -317,21 +316,13 @@ void Server::accept_loop(int listen_fd, std::atomic<bool>& running,
 
 void Server::dispatch_client(int client_fd) {
   std::string client_ip = extract_ip(client_fd);
-  {
-    std::lock_guard lock(d_connected_ips_mtx);
-    auto& entry = d_connected_ips[client_ip];
 
-    if (entry.active >= Config::get().kMaxConnectionsPerIp) {
-      LOG_EVENT(LogLevel::WARN,
-                LogEvent("max_number_connections_from_ip_exceeded")
-                    .add("client_fd", client_fd)
-                    .add("ip", client_ip));
-      send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
-      return;
-    }
+  if (!ConnectionManager::instance().canAcceptConnection(client_ip)) {
+    send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
+    return;
   }
-  ConnectionGuard guard(client_fd, d_connected_ips_mtx,
-                        d_connected_ips[client_ip]);
+
+  ConnectionGuard guard(client_fd, client_ip);
 
   if (!Config::get().kEnableHttps) {
     handle_client(client_fd, client_ip);
@@ -361,8 +352,7 @@ void Server::handle_client(int client_fd, const std::string& client_ip) {
       },
       [client_fd](const char* data, size_t size) {
         return send(client_fd, data, size, 0);
-      },
-      d_connected_ips_mtx, d_connected_ips);
+      });
   handler.process();
 }
 
@@ -373,8 +363,7 @@ void Server::handle_client(SSL* ssl, const std::string& client_ip) {
       [ssl](char* buf, size_t size) { return SSL_read(ssl, buf, size); },
       [ssl](const char* data, size_t size) {
         return SSL_write(ssl, data, size);
-      },
-      d_connected_ips_mtx, d_connected_ips);
+      });
   handler.process();
 }
 
@@ -419,8 +408,7 @@ void Server::start_http_redirect(const Port& redirect_port) {
         };
 
         ConnectionHandler handler(client_fd, client_ip, false, nullptr,
-                                  readFunc, writeFunc, d_connected_ips_mtx,
-                                  d_connected_ips, true);
+                                  readFunc, writeFunc, true);
         handler.process();
       });
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_stopped")

@@ -1,6 +1,7 @@
 add_library(httpserver_lib
     src/httpserver/core/server.cpp
     src/httpserver/core/connection_handler.cpp
+    src/httpserver/core/connection_manager.cpp
     src/httpserver/utils/port.cpp
     src/httpserver/monitoring/logger.cpp
     src/httpserver/http/http_parser.cpp
