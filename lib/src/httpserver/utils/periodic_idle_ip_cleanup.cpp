@@ -4,9 +4,7 @@
 
 namespace HTTPServer {
 
-PerioidIdleIpCleanup::PerioidIdleIpCleanup(IpMap& connected_ips,
-                                           std::mutex& mtx)
-    : d_connected_ips(connected_ips), d_mtx(mtx) {
+PerioidIdleIpCleanup::PerioidIdleIpCleanup() {
   start();
 }
 
@@ -51,29 +49,9 @@ void PerioidIdleIpCleanup::run() {
                   [this] { return !d_running.load(); });
 
     if (d_running) {
-      cleanup_idle_ips();
+      ConnectionManager::instance().removeIdleConnections();
     }
   }
-}
-
-void PerioidIdleIpCleanup::cleanup_idle_ips() {
-  const auto now = std::chrono::steady_clock::now();
-
-  std::lock_guard lock(d_mtx);
-  size_t removed = 0;
-  for (auto it = d_connected_ips.begin(); it != d_connected_ips.end();) {
-    if (it->second.active == 0 &&
-        now - it->second.last_seen > Config::get().kIdleTimeout) {
-      std::string ip = it->first;
-      it = d_connected_ips.erase(it);
-      removed++;
-      LOG_EVENT(LogLevel::INFO, LogEvent("idle_ip_entry_erased").add("ip", ip));
-    } else {
-      ++it;
-    }
-  }
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("idle_ip_cleanup_finished").add("removed", removed));
 }
 
 }  // namespace HTTPServer

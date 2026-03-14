@@ -16,8 +16,7 @@ enum class RequestState { Idle, Receiving };
 
 ConnectionHandler::ConnectionHandler(
     int client_fd, const std::string& client_ip, bool isTLS, SSL* ssl,
-    ReadFunc readFunc, WriteFunc writeFunc, std::mutex& ips_mtx,
-    std::unordered_map<std::string, ConnectedIp>& connected_ips,
+    ReadFunc readFunc, WriteFunc writeFunc,
     bool isRedirectionServer)
     : client_fd_(client_fd),
       client_ip_(client_ip),
@@ -25,38 +24,7 @@ ConnectionHandler::ConnectionHandler(
       ssl_(ssl),
       readFunc_(std::move(readFunc)),
       writeFunc_(std::move(writeFunc)),
-      ips_mtx_(ips_mtx),
-      connected_ips_(connected_ips),
       isRedirectionServer_(isRedirectionServer) {}
-
-void ConnectionHandler::refill_tokens(ConnectedIp& client_ip) {
-  auto now = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed = now - client_ip.last_seen;
-
-  client_ip.tokens =
-      std::min(Config::get().kMaxTokens,
-               client_ip.tokens + elapsed.count() * Config::get().kRefillRate);
-  client_ip.last_seen = now;
-}
-
-bool ConnectionHandler::consume_token(ConnectedIp& client_ip) {
-  if (client_ip.tokens < 1.0) {
-    return false;
-  }
-  client_ip.tokens -= 1.0;
-  return true;
-}
-
-bool ConnectionHandler::allow_request_from_ip(const std::string& ip) {
-  std::lock_guard lock(ips_mtx_);
-  auto& entry = connected_ips_[ip];
-  refill_tokens(entry);
-
-  if (!consume_token(entry)) {
-    return false;
-  }
-  return true;
-}
 
 bool ConnectionHandler::is_tls_handshake_attempt(const std::string& data) {
   if (data.size() < 3) {
@@ -200,11 +168,7 @@ void ConnectionHandler::process() {
       break;
     }
 
-    if (!allow_request_from_ip(client_ip_)) {
-      LOG_EVENT(LogLevel::WARN, LogEvent("rate_limit_exceeded")
-                                    .add("client_fd", client_fd_)
-                                    .add("ip", client_ip_)
-                                    .add("tls", isTLS_));
+    if (!ConnectionManager::instance().allowRequest(client_ip_)) {
       HttpResponse resp = Responses::badRequest(StatusCode::TooManyRequests);
       auto payload = resp.serialize();
       bytes = writeFunc_(payload.c_str(), payload.size());

@@ -1,24 +1,20 @@
 #ifndef PERIODIC_IDLE_IP_CLEANUP_H
 #define PERIODIC_IDLE_IP_CLEANUP_H
 
-#include <httpserver/core/connection_guard.h>
+#include <httpserver/core/connection_manager.h>
 #include <httpserver/utils/config.h>
 
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <string>
 #include <thread>
-#include <unordered_map>
 
 namespace HTTPServer {
 
 class PerioidIdleIpCleanup {
  public:
-  using IpMap = std::unordered_map<std::string, ConnectedIp>;
-
-  PerioidIdleIpCleanup(IpMap& connected_ips, std::mutex& mtx);
+  PerioidIdleIpCleanup();
   ~PerioidIdleIpCleanup();
   PerioidIdleIpCleanup(const PerioidIdleIpCleanup&) = delete;
   PerioidIdleIpCleanup& operator=(const PerioidIdleIpCleanup&) = delete;
@@ -27,15 +23,12 @@ class PerioidIdleIpCleanup {
   void stop();
 
  private:
-  IpMap& d_connected_ips;
-  std::mutex& d_mtx;
   std::atomic<bool> d_running{false};
   std::thread d_thread;
   std::condition_variable d_cv;
   std::mutex d_cv_mtx;
 
   void run();
-  void cleanup_idle_ips();
 };
 
 }  // namespace HTTPServer

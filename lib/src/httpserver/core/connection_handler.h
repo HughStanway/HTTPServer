@@ -7,10 +7,8 @@
 
 #include <chrono>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 namespace HTTPServer {
 
@@ -21,8 +19,6 @@ class ConnectionHandler {
 
   ConnectionHandler(int client_fd, const std::string& client_ip, bool isTLS,
                     SSL* ssl, ReadFunc readFunc, WriteFunc writeFunc,
-                    std::mutex& ips_mtx,
-                    std::unordered_map<std::string, ConnectedIp>& connected_ips,
                     bool isRedirectionServer = false);
 
   void process();
@@ -34,14 +30,9 @@ class ConnectionHandler {
   SSL* ssl_;
   ReadFunc readFunc_;
   WriteFunc writeFunc_;
-  std::mutex& ips_mtx_;
-  std::unordered_map<std::string, ConnectedIp>& connected_ips_;
   bool isRedirectionServer_;
 
   bool is_tls_handshake_attempt(const std::string& data);
-  void refill_tokens(ConnectedIp& client_ip);
-  bool consume_token(ConnectedIp& client_ip);
-  bool allow_request_from_ip(const std::string& ip);
 };
 
 }  // namespace HTTPServer
