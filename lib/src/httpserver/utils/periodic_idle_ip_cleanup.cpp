@@ -4,9 +4,7 @@
 
 namespace HTTPServer {
 
-PerioidIdleIpCleanup::PerioidIdleIpCleanup() {
-  start();
-}
+PerioidIdleIpCleanup::PerioidIdleIpCleanup() { start(); }
 
 PerioidIdleIpCleanup::~PerioidIdleIpCleanup() { stop(); }
 

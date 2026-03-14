@@ -14,10 +14,11 @@ namespace HTTPServer {
 
 enum class RequestState { Idle, Receiving };
 
-ConnectionHandler::ConnectionHandler(
-    int client_fd, const std::string& client_ip, bool isTLS, SSL* ssl,
-    ReadFunc readFunc, WriteFunc writeFunc,
-    bool isRedirectionServer)
+ConnectionHandler::ConnectionHandler(int client_fd,
+                                     const std::string& client_ip, bool isTLS,
+                                     SSL* ssl, ReadFunc readFunc,
+                                     WriteFunc writeFunc,
+                                     bool isRedirectionServer)
     : client_fd_(client_fd),
       client_ip_(client_ip),
       isTLS_(isTLS),

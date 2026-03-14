@@ -18,19 +18,17 @@ class ConnectionGuard {
       : d_client_fd(client_fd), d_ip(ip) {
     ConnectionManager::instance().addConnection(d_ip);
     EventDispatcher::instance().dispatch(ConnectionOpenedEvent{});
-    LOG_EVENT(LogLevel::INFO,
-              LogEvent("connection_guard_enter")
-                  .add("client_fd", d_client_fd)
-                  .add("ip", d_ip));
+    LOG_EVENT(LogLevel::INFO, LogEvent("connection_guard_enter")
+                                  .add("client_fd", d_client_fd)
+                                  .add("ip", d_ip));
   }
 
   ~ConnectionGuard() {
     ConnectionManager::instance().removeConnection(d_ip);
     EventDispatcher::instance().dispatch(ConnectionClosedEvent{});
-    LOG_EVENT(LogLevel::INFO,
-              LogEvent("connection_guard_exit")
-                  .add("client_fd", d_client_fd)
-                  .add("ip", d_ip));
+    LOG_EVENT(LogLevel::INFO, LogEvent("connection_guard_exit")
+                                  .add("client_fd", d_client_fd)
+                                  .add("ip", d_ip));
   }
 
  private:

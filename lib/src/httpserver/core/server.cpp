@@ -316,12 +316,12 @@ void Server::accept_loop(int listen_fd, std::atomic<bool>& running,
 
 void Server::dispatch_client(int client_fd) {
   std::string client_ip = extract_ip(client_fd);
-  
+
   if (!ConnectionManager::instance().canAcceptConnection(client_ip)) {
-      send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
-      return;
+    send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
+    return;
   }
-  
+
   ConnectionGuard guard(client_fd, client_ip);
 
   if (!Config::get().kEnableHttps) {
