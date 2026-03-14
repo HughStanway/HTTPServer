@@ -1,4 +1,4 @@
-#include <httpserver/httpserver.h>
+#include <httpserver>
 
 #include <iostream>
 

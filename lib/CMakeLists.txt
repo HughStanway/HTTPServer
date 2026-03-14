@@ -1,19 +1,19 @@
 add_library(httpserver_lib
-    src/server.cpp
-    src/connection_handler.cpp
-    src/port.cpp
-    src/logger.cpp
-    src/http_parser.cpp
-    src/utils.cpp
-    src/http_object.cpp
-    src/http_response_builder.cpp
-    src/router.cpp
-    src/route_matchers.cpp
-    src/thread_pool.cpp
-    src/periodic_idle_ip_cleanup.cpp
-    src/config.cpp
-    src/metrics.cpp
-    src/event_dispatcher.cpp
+    src/httpserver/core/server.cpp
+    src/httpserver/core/connection_handler.cpp
+    src/httpserver/utils/port.cpp
+    src/httpserver/monitoring/logger.cpp
+    src/httpserver/http/http_parser.cpp
+    src/httpserver/utils/utils.cpp
+    src/httpserver/http/http_object.cpp
+    src/httpserver/http/http_response_builder.cpp
+    src/httpserver/routing/router.cpp
+    src/httpserver/routing/route_matchers.cpp
+    src/httpserver/threading/thread_pool.cpp
+    src/httpserver/utils/periodic_idle_ip_cleanup.cpp
+    src/httpserver/utils/config.cpp
+    src/httpserver/monitoring/metrics.cpp
+    src/httpserver/events/event_dispatcher.cpp
 )
 
 include(FetchContent)
@@ -42,4 +42,5 @@ target_include_directories(httpserver_lib PUBLIC
 target_include_directories(httpserver_lib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

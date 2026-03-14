@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <httpserver/metrics.h>
+#include <httpserver/monitoring/metrics.h>
 #include <chrono>
 #include <thread>
 
