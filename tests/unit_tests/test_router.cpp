@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <httpserver/http/http_object.h>
-#include <httpserver/http/http_parser.h>
-#include <httpserver/http/http_response_builder.h>
-#include <httpserver/routing/router.h>
+#include <httpserver_impl/http/http_object.h>
+#include <httpserver_impl/http/http_parser.h>
+#include <httpserver_impl/http/http_response_builder.h>
+#include <httpserver_impl/routing/router.h>
 
 #include <filesystem>
 #include <fstream>

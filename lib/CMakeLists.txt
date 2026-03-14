@@ -1,20 +1,20 @@
 add_library(httpserver_lib
-    src/httpserver/core/server.cpp
-    src/httpserver/core/connection_handler.cpp
-    src/httpserver/core/connection_manager.cpp
-    src/httpserver/utils/port.cpp
-    src/httpserver/monitoring/logger.cpp
-    src/httpserver/http/http_parser.cpp
-    src/httpserver/utils/utils.cpp
-    src/httpserver/http/http_object.cpp
-    src/httpserver/http/http_response_builder.cpp
-    src/httpserver/routing/router.cpp
-    src/httpserver/routing/route_matchers.cpp
-    src/httpserver/threading/thread_pool.cpp
-    src/httpserver/utils/periodic_idle_ip_cleanup.cpp
-    src/httpserver/utils/config.cpp
-    src/httpserver/monitoring/metrics.cpp
-    src/httpserver/events/event_dispatcher.cpp
+    src/httpserver_impl/core/server.cpp
+    src/httpserver_impl/core/connection_handler.cpp
+    src/httpserver_impl/core/connection_manager.cpp
+    src/httpserver_impl/utils/port.cpp
+    src/httpserver_impl/monitoring/logger.cpp
+    src/httpserver_impl/http/http_parser.cpp
+    src/httpserver_impl/utils/utils.cpp
+    src/httpserver_impl/http/http_object.cpp
+    src/httpserver_impl/http/http_response_builder.cpp
+    src/httpserver_impl/routing/router.cpp
+    src/httpserver_impl/routing/route_matchers.cpp
+    src/httpserver_impl/threading/thread_pool.cpp
+    src/httpserver_impl/utils/periodic_idle_ip_cleanup.cpp
+    src/httpserver_impl/utils/config.cpp
+    src/httpserver_impl/monitoring/metrics.cpp
+    src/httpserver_impl/events/event_dispatcher.cpp
 )
 
 include(FetchContent)
@@ -57,7 +57,7 @@ install(TARGETS httpserver_lib
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(DIRECTORY src/httpserver
+install(DIRECTORY src/httpserver_impl
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
