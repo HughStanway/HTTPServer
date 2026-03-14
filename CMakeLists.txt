@@ -6,15 +6,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(ENABLE_SANITIZERS "Compile with ASan and UBSan" OFF)
 
+option(BUILD_TESTING "Build tests" ON)
+option(BUILD_SERVER_APP "Build server application" ON)
+
 # Add the library directory
 add_subdirectory(lib)
 
 # Add the executable directory
-add_subdirectory(src)
+if(BUILD_SERVER_APP)
+    add_subdirectory(src)
+endif()
 
 # Tests
-enable_testing()
-add_subdirectory(tests)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 if (ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
