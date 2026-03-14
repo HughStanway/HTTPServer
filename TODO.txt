@@ -14,13 +14,14 @@
 [x] Add Doxygen comments for public API (Use github action to automatically build and publish)
 [x] research man pages for sys calls used by server in order to make the socket setup better for deployment
 [x] server metrics
+[x] refactor - better architecture design??
+[x] implement server metrics
 [x] Compile as a proper library not just a local library
-[ ] refactor - better architecture design??
 [ ] json response - need a json Reponse:: type similar to file::
+[ ] distributed tracing
 [ ] Python wrapper similar to FastAPI
 [ ] Research how to host this server securly on a linux server (Do i need a domain, firewall etc...)
 [ ] Use this server as a backend for serving a simple file storage website (Like google drive)
-[ ] implement server metrics and distributed tracing
 
 Further server enhancements:
 
@@ -94,11 +95,10 @@ Further server enhancements:
 ⸻
 
 🔒 Phase 6 — Operational hardening
-	•	Graceful reload
-	•	Hot TLS cert reload (reload config or certs without restarting server)
-	•	Access logging formats
-	•	Structured JSON logs
-	•	Reverse proxy support
+	[ ]	Graceful reload
+	[ ]	Hot TLS cert reload (reload config or certs without restarting server)
+	[ ]	Access logging formats
+	[ ]	Structured JSON logs
 
 ⸻
 
@@ -112,4 +112,25 @@ Further server enhancements:
 	    •	HTTP → HTTPS redirection
 	    •	Keep-alive behavior
 	    •	Shutdown during active connections
+	[ ]	Load & Stress Testing
+	    •	Benchmarking with wrk / hey / k6
+	    •	Measure RPS, latency percentiles, memory usage under thousands of concurrent connections
+	[ ]	Malicious Client Simulation (Chaos/Security Testing)
+	    •	Test Slowloris resistance (slowhttptest)
+	    •	Handle half-closed (FIN-WAIT) sockets correctly
+	[ ]	TLS / Cryptography Audits
+	    •	Audit with testssl.sh to verify secure cipher suites and protocol versions
+
+⸻
+
+🌐 Phase 8 — Advanced HTTP Features & Proxies
+	[ ]	Reverse Proxy / Load Balancing
+	    •	Forward requests to backend servers (e.g., FastCGI, Node.js)
+	[ ]	HTTP/2 Support
+	    •	Multiplexing support over TLS
+	[ ]	Response Compression
+	    •	Dynamic compression (gzip, brotli) for text, HTML, and JSON
+	[ ]	Caching & ETag Middleware
+	    •	Generate ETag headers for static files
+	    •	Respect If-None-Match to return 304 Not Modified
 
