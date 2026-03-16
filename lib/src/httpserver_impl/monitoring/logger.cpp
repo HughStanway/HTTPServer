@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <filesystem>
 #include <thread>
 
 namespace HTTPServer {
@@ -77,7 +78,21 @@ void Logger::initializeLogFileIfNeeded() {
     return;
   }
 
-  d_logFilePath = generateLogFileName();
+  if (Config::get().kFileLoggingPath.empty()) {
+    d_logFilePath = generateLogFileName();
+  } else {
+    d_logFilePath = Config::get().kFileLoggingPath;
+  }
+
+  std::filesystem::path logPath(d_logFilePath);
+  if (logPath.has_parent_path()) {
+    std::error_code ec;
+    std::filesystem::create_directories(logPath.parent_path(), ec);
+    // Even if creation fails, we try to open the file.
+    // The open call itself will handle the error if the directory doesn't
+    // exist.
+  }
+
   d_logFile.open(d_logFilePath, std::ios::out | std::ios::app);
   d_logFileInitialized = true;
 }

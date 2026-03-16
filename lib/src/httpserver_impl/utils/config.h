@@ -76,6 +76,7 @@ struct ServerConfig {
    */
   LogLevel kLogLevel{LogLevel::INFO};
   bool kFileLoggingEnabled = false;
+  std::string kFileLoggingPath{};
 };
 
 class Config {

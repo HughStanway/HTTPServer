@@ -240,15 +240,18 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   /**
    * Logging Level
    */
-  if (auto net = tbl["logging"].as_table()) {
-    if (auto v = get_toml_value<std::string>(net, "log_level")) {
+  if (auto logging = tbl["logging"].as_table()) {
+    if (auto v = get_toml_value<std::string>(logging, "log_level")) {
       HTTPServer::LogLevel level = string_to_log_level(v.value());
       HTTPServer::Logger::instance().setLevel(level);
       cfg.kLogLevel = level;
     }
 
-    if (auto v = get_toml_value<bool>(net, "file_logging_enabled"))
+    if (auto v = get_toml_value<bool>(logging, "file_logging_enabled"))
       cfg.kFileLoggingEnabled = v.value();
+
+    if (auto v = get_toml_value<std::string>(logging, "file_logging_path"))
+      cfg.kFileLoggingPath = v.value();
   }
 
   return cfg;
