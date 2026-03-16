@@ -93,7 +93,7 @@ void Logger::initializeLogFileIfNeeded() {
     // exist.
   }
 
-  d_logFile.open(d_logFilePath, std::ios::out | std::ios::app);
+  d_logFile.open(d_logFilePath, std::ios::out | std::ios::trunc);
   d_logFileInitialized = true;
 }
 
