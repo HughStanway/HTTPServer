@@ -39,3 +39,4 @@ allowed_versions = ["HTTP/1.0", "HTTP/1.1"]
 [logging]
 log_level = "INFO"
 file_logging_enabled = false
+file_logging_path = "log/server.log"

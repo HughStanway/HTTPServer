@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <httpserver_impl/core/connection_handler.h>
 #include <httpserver_impl/core/server.h>
+#include <httpserver_impl/monitoring/metrics.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -215,6 +216,9 @@ void Server::start() {
   LOG_EVENT(
       LogLevel::INFO,
       LogEvent("server_starting").add("port", Config::get().kPort.toString()));
+
+  // Ensure metrics are initialized
+  Metrics::instance();
 
   // 1. Set up HTTPS
   if (Config::get().kEnableHttps) {
