@@ -133,4 +133,4 @@ Further server enhancements:
 	[ ]	Caching & ETag Middleware
 	    •	Generate ETag headers for static files
 	    •	Respect If-None-Match to return 304 Not Modified
-
+	[ ] Design better Router API for registering routes and handlers

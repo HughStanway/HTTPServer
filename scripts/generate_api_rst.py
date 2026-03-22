@@ -14,7 +14,7 @@ def parse_header_files(index_xml: Path) -> list[str]:
         if compound.attrib.get("kind") != "file":
             continue
         name = (compound.findtext("name") or "").strip()
-        if name.endswith(".h"):
+        if name.endswith(".h") or name == "httpserver":
             headers.append(name)
 
     headers.sort()
@@ -70,21 +70,24 @@ def render_api_index(headers: list[str]) -> str:
         "",
         "The following components form the core of the ``HTTPServer`` library:",
         "",
-        "* **Server** (``server.h``): Manages the server lifecycle, socket listening, and connection dispatching.",
-        "* **Router** (``router.h``): Maps incoming request paths and methods to application-defined handler functions.",
-        "* **HTTP Parser** (``http_parser.h``): Parses raw network bytes into structured ``HttpRequest`` objects.",
-        "* **HTTP Objects** (``http_object.h``): Defines the fundamental ``HttpRequest`` and ``HttpResponse`` data structures.",
-        "* **Response Builder** (``http_response_builder.h``): A fluent helper for constructing HTTP responses.",
-        "* **Thread Pool** (``thread_pool.h``): Manages a pool of worker threads for handling concurrent requests.",
-        "* **Configuration** (``config.h``): Handles runtime server settings, including port, TLS, and performance limits.",
-        "* **Connection Guard** (``connection_guard.h``): An RAII utility for managing and tracking active client connections.",
-        "* **Periodic Cleanup** (``periodic_idle_ip_cleanup.h``): A background service for cleaning up inactive client IP records.",
-        "* **Port** (``port.h``): A type-safe abstraction for handling network port numbers and representations.",
-        "* **Logger** (``logger.h``): Provides thread-safe logging for server events and errors.",
-        "* **Log Event** (``log_event.h``): Represents structured log data with key-value pairs.",
-        "* **Log Level** (``log_level.h``): Defines severity levels (INFO, WARN, ERROR) for the logging system.",
-        "* **Utilities** (``utils.h``): Shared helper functions for URI decoding, MIME-type lookup, and more.",
-        "* **Metrics** (``metrics.h``): Tracks server-level performance data including active connections, request counts, response statuses, and latency.",
+        "* **Server** (``httpserver_impl/core/server.h``): Manages the server lifecycle, socket listening, and connection dispatching.",
+        "* **Router** (``httpserver_impl/routing/router.h``): Maps incoming request paths and methods to application-defined handler functions.",
+        "* **HTTP Parser** (``httpserver_impl/http/http_parser.h``): Parses raw network bytes into structured ``HttpRequest`` objects.",
+        "* **HTTP Objects** (``httpserver_impl/http/http_object.h``): Defines the fundamental ``HttpRequest`` and ``HttpResponse`` data structures.",
+        "* **Response Builder** (``httpserver_impl/http/http_response_builder.h``): A fluent helper for constructing HTTP responses.",
+        "* **Thread Pool** (``httpserver_impl/threading/thread_pool.h``): Manages a pool of worker threads for handling concurrent requests.",
+        "* **Configuration** (``httpserver_impl/utils/config.h``): Handles runtime server settings, including port, TLS, and performance limits.",
+        "* **Connection Guard** (``httpserver_impl/core/connection_guard.h``): An RAII utility for managing and tracking active client connections.",
+        "* **Connection Manager** (``httpserver_impl/core/connection_manager.h``): Manages active client connections and enforces IP-based rate limiting across the server.",
+        "* **Periodic Cleanup** (``httpserver_impl/utils/periodic_idle_ip_cleanup.h``): A background service for cleaning up inactive client IP records.",
+        "* **Port** (``httpserver_impl/utils/port.h``): A type-safe abstraction for handling network port numbers and representations.",
+        "* **Logger** (``httpserver_impl/monitoring/logger.h``): Provides thread-safe logging for server events and errors.",
+        "* **Log Event** (``httpserver_impl/monitoring/log_event.h``): Represents structured log data with key-value pairs.",
+        "* **Log Level** (``httpserver_impl/monitoring/log_level.h``): Defines severity levels (INFO, WARN, ERROR) for the logging system.",
+        "* **Utilities** (``httpserver_impl/utils/utils.h``): Shared helper functions for URI decoding, MIME-type lookup, and more.",
+        "* **Metrics** (``httpserver_impl/monitoring/metrics.h``): Tracks server-level performance data including active connections, request counts, response statuses, and latency.",
+        "* **Event Dispatcher** (``httpserver_impl/events/event_dispatcher.h``): A central hub for internal server events, allowing components like Metrics to subscribe and react to changes.",
+        "",
         "* **Umbrella Header** (``httpserver``): A single header including most common library components.",
         "",
         "Detailed API",
@@ -243,7 +246,7 @@ To start a server, you need to initialize the ``Server`` object (optionally with
 
 .. code-block:: cpp
 
-   #include <httpserver/httpserver.h>
+   #include <httpserver>
 
    int main() {
        using namespace HTTPServer;
@@ -358,7 +361,7 @@ For more control, use the ``HttpResponseBuilder`` fluent API.
        return HttpResponseBuilder()
            .setStatus(StatusCode::CREATED)
            .setBody("{\\"status\\":\\"success\\"}")
-           .setHeader("Content-Type", "application/json")
+           .addHeader("Content-Type", "application/json")
            .build(req);
    });
 
@@ -385,7 +388,7 @@ The ``LogEvent`` class allows you to build structured log lines with key-value p
 
 .. code-block:: cpp
 
-   #include <httpserver/log_event.h>
+   #include <httpserver_impl/monitoring/log_event.h>
 
    LOG_EVENT(LogLevel::INFO, 
        LogEvent("request_processed")
@@ -447,7 +450,7 @@ You can access a point-in-time snapshot of the current metrics using the ``snaps
 
 .. code-block:: cpp
 
-   #include <httpserver/metrics.h>
+   #include <httpserver_impl/monitoring/metrics.h>
 
    void logServerStats() {
        auto stats = Metrics::instance().snapshot();
@@ -563,6 +566,8 @@ Section: [http-config]
 ----------------------
 
 * ``max_header_bytes``: Maximum allowed size for HTTP headers (default: 16KB).
+* ``max_header_count``: Maximum number of headers allowed per request (default: 100).
+* ``max_total_header_size``: Maximum total size for all headers combined (default: 64KB).
 * ``max_body_bytes``: Maximum allowed size for the HTTP request body (default: 10MB).
 * ``allowed_methods``: List of HTTP methods processed by the server (e.g., ["GET", "POST"]).
 * ``allowed_versions``: List of supported HTTP protocol versions (e.g., ["HTTP/1.0", "HTTP/1.1"]).
@@ -572,6 +577,7 @@ Section: [logging]
 
 * ``log_level``: Severity filter level (INFO, WARN, ERROR).
 * ``file_logging_enabled``: Whether to enable logging to a specific file on disk.
+* ``file_logging_path``: Path to the log file. If the directories do not exist, they will be created.
 """
 
 

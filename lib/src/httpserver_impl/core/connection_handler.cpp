@@ -62,12 +62,6 @@ void ConnectionHandler::process() {
   std::chrono::steady_clock::time_point request_start;
 
   while (keepAlive) {
-    if (request_state == RequestState::Idle) {
-      request_state = RequestState::Receiving;
-      request_start = std::chrono::steady_clock::now();
-      total_request_bytes_received = 0;
-    }
-
     char buffer[Config::get().kRecvBufferSize];
     int bytes = readFunc_(buffer, sizeof(buffer));
     if (bytes <= 0) {
@@ -87,10 +81,16 @@ void ConnectionHandler::process() {
                                        .add("ip", client_ip_)
                                        .add("tls", isTLS_));
       break;
-    } else {
-      recvBuffer.append(buffer, bytes);
-      total_request_bytes_received += bytes;
     }
+
+    if (request_state == RequestState::Idle) {
+      request_state = RequestState::Receiving;
+      request_start = std::chrono::steady_clock::now();
+      total_request_bytes_received = 0;
+    }
+
+    recvBuffer.append(buffer, bytes);
+    total_request_bytes_received += bytes;
 
     if (request_state == RequestState::Receiving) {
       auto now = std::chrono::steady_clock::now();
