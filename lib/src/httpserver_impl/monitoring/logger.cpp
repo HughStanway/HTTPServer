@@ -19,6 +19,10 @@ void Logger::setLevel(LogLevel level) {
   d_currentLogLevel = level;
 }
 
+bool Logger::shouldLogThisLevel(LogLevel level) const {
+  return static_cast<int>(level) >= static_cast<int>(d_currentLogLevel);
+}
+
 std::string Logger::levelToString(LogLevel level) {
   switch (level) {
     case LogLevel::INFO:
@@ -101,7 +105,7 @@ void Logger::log(const std::string& message, LogLevel level) {
   std::lock_guard<std::mutex> lock(d_mtx);
 
   // Only log messages at or above current level
-  if (static_cast<int>(level) < static_cast<int>(d_currentLogLevel)) {
+  if (!shouldLogThisLevel(level)) {
     return;
   }
 
