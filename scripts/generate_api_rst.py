@@ -377,9 +377,9 @@ Use the convenience macros for basic messages:
 
 .. code-block:: cpp
 
-   LOG_INFO("Server starting...");
-   LOG_WARN("Rate limit exceeded for IP: " + ip);
-   LOG_ERROR("Failed to open configuration file");
+   LOG_INFO << "Server starting...";
+   LOG_WARN << "Rate limit exceeded for IP: " << ip;
+   LOG_ERROR << "Failed to open configuration file";
 
 Structured Logging
 ~~~~~~~~~~~~~~~~~~

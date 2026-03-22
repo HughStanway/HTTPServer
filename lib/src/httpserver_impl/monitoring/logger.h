@@ -2,6 +2,7 @@
 #define LOGGER_H
 
 #include <httpserver_impl/monitoring/log_level.h>
+#include <httpserver_impl/monitoring/log_stream.h>
 
 #include <chrono>
 #include <ctime>
@@ -18,6 +19,7 @@ class Logger {
   void log(const std::string& message, LogLevel level = LogLevel::INFO);
   void logErrno(const std::string& message, LogLevel level = LogLevel::INFO);
   void setLevel(LogLevel level);
+  bool shouldLogThisLevel(LogLevel level) const;
 
  private:
   Logger() = default;
@@ -39,14 +41,20 @@ class Logger {
   bool d_logFileInitialized{false};
 };
 
-#define LOG_INFO(msg) \
-  HTTPServer::Logger::instance().log(msg, HTTPServer::LogLevel::INFO)
-#define LOG_WARN(msg) \
-  HTTPServer::Logger::instance().log(msg, HTTPServer::LogLevel::WARN)
-#define LOG_ERROR(msg) \
-  HTTPServer::Logger::instance().log(msg, HTTPServer::LogLevel::ERROR)
-#define LOG_ERROR_ERRNO(msg) \
-  HTTPServer::Logger::instance().logErrno(msg, HTTPServer::LogLevel::ERROR)
+using LogStreamImpl = LogStream<Logger>;
+
+#define LOG_STREAM(level)                                       \
+  if (HTTPServer::Logger::instance().shouldLogThisLevel(level)) \
+  HTTPServer::LogStreamImpl(level)
+
+#define LOG_INFO LOG_STREAM(HTTPServer::LogLevel::INFO)
+#define LOG_WARN LOG_STREAM(HTTPServer::LogLevel::WARN)
+#define LOG_ERROR LOG_STREAM(HTTPServer::LogLevel::ERROR)
+#define LOG_ERROR_ERRNO                                  \
+  if (HTTPServer::Logger::instance().shouldLogThisLevel( \
+          HTTPServer::LogLevel::ERROR))                  \
+  HTTPServer::LogStreamImpl(HTTPServer::LogLevel::ERROR, true)
+
 #define LOG_EVENT(level, event) \
   HTTPServer::Logger::instance().log((event).str(), level)
 

@@ -28,13 +28,13 @@ int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
                             bool dualStackIPv6 = true) {
   int fd = socket(AF_INET6, SOCK_STREAM, 0);
   if (fd < 0) {
-    LOG_ERROR_ERRNO("Socket creation failed");
+    LOG_ERROR_ERRNO << "Socket creation failed";
     return -1;
   }
 
   int opt = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-    LOG_ERROR_ERRNO("setsockopt(SO_REUSEADDR) failed");
+    LOG_ERROR_ERRNO << "setsockopt(SO_REUSEADDR) failed";
   }
 
   if (dualStackIPv6) {
@@ -43,13 +43,13 @@ int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
   }
 
   if (bind(fd, addr, addrlen) < 0) {
-    LOG_ERROR_ERRNO("Bind failed");
+    LOG_ERROR_ERRNO << "Bind failed";
     close(fd);
     return -1;
   }
 
   if (listen(fd, SOMAXCONN) < 0) {
-    LOG_ERROR_ERRNO("Listen failed");
+    LOG_ERROR_ERRNO << "Listen failed";
     close(fd);
     return -1;
   }
@@ -64,7 +64,7 @@ void set_socket_timeout_option(int fd, int seconds, Option option) {
   timeout.tv_usec = 0;
 
   if (setsockopt(fd, SOL_SOCKET, option, &timeout, sizeof(timeout)) < 0) {
-    LOG_ERROR_ERRNO("setsockopt(SO_RCVTIMEO) failed");
+    LOG_ERROR_ERRNO << "setsockopt(SO_RCVTIMEO) failed";
   }
 }
 
@@ -310,7 +310,7 @@ void Server::accept_loop(int listen_fd, std::atomic<bool>& running,
 
     if (client_fd < 0) {
       if (!running || errno == EBADF || errno == EINVAL) break;
-      LOG_ERROR_ERRNO("Incoming connection accept failed");
+      LOG_ERROR_ERRNO << "Incoming connection accept failed";
       continue;
     }
 
