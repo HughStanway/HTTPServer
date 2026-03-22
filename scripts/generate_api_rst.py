@@ -78,6 +78,7 @@ def render_api_index(headers: list[str]) -> str:
         "* **Thread Pool** (``httpserver_impl/threading/thread_pool.h``): Manages a pool of worker threads for handling concurrent requests.",
         "* **Configuration** (``httpserver_impl/utils/config.h``): Handles runtime server settings, including port, TLS, and performance limits.",
         "* **Connection Guard** (``httpserver_impl/core/connection_guard.h``): An RAII utility for managing and tracking active client connections.",
+        "* **Connection Manager** (``httpserver_impl/core/connection_manager.h``): Manages active client connections and enforces IP-based rate limiting across the server.",
         "* **Periodic Cleanup** (``httpserver_impl/utils/periodic_idle_ip_cleanup.h``): A background service for cleaning up inactive client IP records.",
         "* **Port** (``httpserver_impl/utils/port.h``): A type-safe abstraction for handling network port numbers and representations.",
         "* **Logger** (``httpserver_impl/monitoring/logger.h``): Provides thread-safe logging for server events and errors.",
@@ -85,6 +86,7 @@ def render_api_index(headers: list[str]) -> str:
         "* **Log Level** (``httpserver_impl/monitoring/log_level.h``): Defines severity levels (INFO, WARN, ERROR) for the logging system.",
         "* **Utilities** (``httpserver_impl/utils/utils.h``): Shared helper functions for URI decoding, MIME-type lookup, and more.",
         "* **Metrics** (``httpserver_impl/monitoring/metrics.h``): Tracks server-level performance data including active connections, request counts, response statuses, and latency.",
+        "* **Event Dispatcher** (``httpserver_impl/events/event_dispatcher.h``): A central hub for internal server events, allowing components like Metrics to subscribe and react to changes.",
         "",
         "* **Umbrella Header** (``httpserver``): A single header including most common library components.",
         "",
@@ -244,7 +246,7 @@ To start a server, you need to initialize the ``Server`` object (optionally with
 
 .. code-block:: cpp
 
-   #include <httpserver/httpserver.h>
+   #include <httpserver>
 
    int main() {
        using namespace HTTPServer;
@@ -386,7 +388,7 @@ The ``LogEvent`` class allows you to build structured log lines with key-value p
 
 .. code-block:: cpp
 
-   #include <httpserver/log_event.h>
+   #include <httpserver_impl/monitoring/log_event.h>
 
    LOG_EVENT(LogLevel::INFO, 
        LogEvent("request_processed")
@@ -448,7 +450,7 @@ You can access a point-in-time snapshot of the current metrics using the ``snaps
 
 .. code-block:: cpp
 
-   #include <httpserver/metrics.h>
+   #include <httpserver_impl/monitoring/metrics.h>
 
    void logServerStats() {
        auto stats = Metrics::instance().snapshot();
@@ -564,6 +566,8 @@ Section: [http-config]
 ----------------------
 
 * ``max_header_bytes``: Maximum allowed size for HTTP headers (default: 16KB).
+* ``max_header_count``: Maximum number of headers allowed per request (default: 100).
+* ``max_total_header_size``: Maximum total size for all headers combined (default: 64KB).
 * ``max_body_bytes``: Maximum allowed size for the HTTP request body (default: 10MB).
 * ``allowed_methods``: List of HTTP methods processed by the server (e.g., ["GET", "POST"]).
 * ``allowed_versions``: List of supported HTTP protocol versions (e.g., ["HTTP/1.0", "HTTP/1.1"]).
