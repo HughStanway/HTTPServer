@@ -94,7 +94,7 @@ def render_api_index(headers: list[str]) -> str:
         "------------",
         "",
         ".. toctree::",
-        "   :maxdepth: 1",
+        "   :maxdepth: -1",
         "",
     ]
     lines.extend([f"   api/{page_slug(header)}" for header in headers])
@@ -140,7 +140,7 @@ Further Reading
 * :doc:`testing` - Information about the project's testing strategy.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: -1
    :caption: Contents:
 
    api
