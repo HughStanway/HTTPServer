@@ -80,9 +80,10 @@ docs: docs-deps
 		-e 's|^GENERATE_HTML.*|GENERATE_HTML          = NO|' \
 		-e 's|^GENERATE_XML.*|GENERATE_XML           = YES|' \
 		-e 's|^XML_OUTPUT.*|XML_OUTPUT             = xml|' \
-		-e 's|^INPUT.*|INPUT                  = lib/include|' \
+		-e 's|^INPUT.*|INPUT                  = lib/include lib/src|' \
 		-e 's|^RECURSIVE.*|RECURSIVE              = YES|' \
 		Doxyfile > $(DOCS_DOXYFILE_TMP)
+	@echo "FILE_PATTERNS += httpserver" >> $(DOCS_DOXYFILE_TMP)
 	@doxygen $(DOCS_DOXYFILE_TMP)
 	@echo "==> Generating Sphinx site structure..."
 	@$(VENV_PYTHON) scripts/generate_api_rst.py \
