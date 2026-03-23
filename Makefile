@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 BUILD_DIR := build
+BUILD_INSTALL_DIR := $(BUILD_DIR)_install
 SRC_DIRS := src include tests
 EXECUTABLE_DIR := src
 TEST_DIR := tests
@@ -32,6 +33,7 @@ run: build
 clean:
 	@echo "==> Cleaning build directory..."
 	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_INSTALL_DIR)
 
 unit_test: build
 	@echo "==> Running unit tests..."
