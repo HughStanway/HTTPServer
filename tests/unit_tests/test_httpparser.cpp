@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <httpserver_impl/http/http_object.h>
 #include <httpserver_impl/http/http_parser.h>
+#include <httpserver_impl/utils/utils.h>
 
 using namespace HTTPServer;
 
@@ -127,8 +128,8 @@ TEST(HttpParserTests, ValidGetRequest) {
   EXPECT_EQ(req.path, "/index.html");
   EXPECT_EQ(req.version, "HTTP/1.1");
 
-  EXPECT_EQ(req.headers["Host"][0], "localhost");
-  EXPECT_EQ(req.headers["User-Agent"][0], "TestClient");
+  EXPECT_EQ(req.headers["host"][0], "localhost");
+  EXPECT_EQ(req.headers["user-agent"][0], "TestClient");
 }
 
 TEST(HttpParserTests, InvalidRequestLineFormat) {
@@ -860,4 +861,57 @@ TEST(HttpParserTests, TotalHeaderSizeTooLarge) {
   // THEN
   EXPECT_EQ(result, ParseResult::PARSE_ERROR);
   EXPECT_EQ(parser.error(), ParseError::TOTAL_HEADER_SIZE_TOO_LARGE);
+}
+
+TEST(HttpParserTests, CaseInsensitiveHeaders) {
+  // GIVEN
+  HttpParser parser;
+  const std::string recvBuffer =
+      "GET / HTTP/1.1\r\n"
+      "host: localhost\r\n"
+      "CONTENT-LENGTH: 0\r\n"
+      "X-Custom-Header: value\r\n"
+      "\r\n";
+
+  std::string_view view(recvBuffer);
+
+  // WHEN
+  ParseResult result = parser.parse(view);
+
+  // THEN
+  EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+  EXPECT_EQ(parser.error(), ParseError::NONE);
+
+  HttpRequest req = parser.takeRequest();
+  EXPECT_EQ(req.headers.at("host")[0], "localhost");
+  EXPECT_EQ(req.headers.at("content-length")[0], "0");
+  EXPECT_EQ(req.headers.at("x-custom-header")[0], "value");
+}
+
+TEST(HttpParserTests, UtilsCaseInsensitive) {
+  // GIVEN
+  HttpParser parser;
+  const std::string recvBuffer =
+      "GET / HTTP/1.1\r\n"
+      "CONNECTION: keep-alive\r\n"
+      "HOST: example.com\r\n"
+      "\r\n";
+
+  std::string_view view(recvBuffer);
+
+  // WHEN
+  ParseResult result = parser.parse(view);
+
+  // THEN
+  EXPECT_EQ(result, ParseResult::REQUEST_COMPLETE);
+  HttpRequest req = parser.takeRequest();
+
+  EXPECT_TRUE(requestWantsKeepAlive(req));
+  auto host = get_last_header_value(req, "Host");
+  ASSERT_TRUE(host.has_value());
+  EXPECT_EQ(*host, "example.com");
+
+  auto hostLower = get_last_header_value(req, "host");
+  ASSERT_TRUE(hostLower.has_value());
+  EXPECT_EQ(*hostLower, "example.com");
 }
