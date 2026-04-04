@@ -101,7 +101,7 @@ std::string generateErrorPage(StatusCode code) {
 }
 
 bool requestWantsKeepAlive(const HttpRequest& req) {
-  auto it = req.headers.find("Connection");
+  auto it = req.headers.find("connection");
   if (it != req.headers.end()) {
     std::string value = it->second.back();
     std::transform(value.begin(), value.end(), value.begin(), ::tolower);
@@ -132,7 +132,11 @@ std::string Mime::fromExtension(const std::string& path) {
 
 std::optional<std::string_view> get_last_header_value(const HttpRequest& req,
                                                       std::string_view name) {
-  auto it = req.headers.find(std::string(name));
+  std::string lowerName(name);
+  std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  auto it = req.headers.find(lowerName);
   if (it == req.headers.end() || it->second.empty()) return std::nullopt;
 
   return it->second.back();
