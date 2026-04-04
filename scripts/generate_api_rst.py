@@ -524,6 +524,7 @@ The server can be configured using a TOML file passed to the ``Server`` construc
 Section: [ports]
 ----------------
 
+* ``bind_address``: The IP address the server binds its sockets to (default: 0.0.0.0). Note that if binding to more specific addresses like ``127.0.0.1`` on privileged ports like ``443``, it will require root permissions.
 * ``server_port``: The primary port the server listens on (default: 443).
 * ``http_redirection_port``: The port used for plain HTTP traffic if redirection is enabled (default: 80).
 

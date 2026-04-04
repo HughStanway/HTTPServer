@@ -72,11 +72,14 @@ HTTPServer::ServerConfig parse_config_file(const std::string& path) {
   /**
    * Server Ports
    */
-  if (auto cleanup = tbl["ports"].as_table()) {
-    if (auto v = get_toml_value<int>(cleanup, "server_port"))
+  if (auto ports_tbl = tbl["ports"].as_table()) {
+    if (auto v = get_toml_value<std::string>(ports_tbl, "bind_address"))
+      cfg.kBindAddress = v.value();
+
+    if (auto v = get_toml_value<int>(ports_tbl, "server_port"))
       cfg.kPort = HTTPServer::Port(v.value());
 
-    if (auto v = get_toml_value<int>(cleanup, "http_redirection_port"))
+    if (auto v = get_toml_value<int>(ports_tbl, "http_redirection_port"))
       cfg.kRedirectionPort = HTTPServer::Port(v.value());
   }
 

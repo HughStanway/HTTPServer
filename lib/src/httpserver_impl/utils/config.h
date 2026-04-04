@@ -15,6 +15,7 @@ struct ServerConfig {
   /**
    * Server Ports
    */
+  std::string kBindAddress{"::"};
   Port kPort{443};
   Port kRedirectionPort{80};
 
