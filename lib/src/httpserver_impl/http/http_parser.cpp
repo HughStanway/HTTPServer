@@ -15,6 +15,11 @@ static bool iequals(std::string_view a, std::string_view b) {
   return true;
 }
 
+static void toLower(std::string& s) {
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+}
+
 }  // namespace
 
 namespace HTTPServer {
@@ -230,13 +235,14 @@ bool HttpParser::parseHeaders(std::string_view& buffer) {
       return false;
     }
 
+    toLower(name);
     d_request.headers[name].push_back(value);
   }
 }
 
 bool HttpParser::validateHeaders() {
   if (d_request.version == "HTTP/1.1") {
-    auto host = d_request.headers.find("Host");
+    auto host = d_request.headers.find("host");
     if (host == d_request.headers.end() || host->second.empty() ||
         host->second.back().empty() || host->second.size() != 1) {
       d_error = ParseError::MISSING_HOST_HEADER;
@@ -245,7 +251,7 @@ bool HttpParser::validateHeaders() {
     }
   }
 
-  auto cl = d_request.headers.find("Content-Length");
+  auto cl = d_request.headers.find("content-length");
   if (cl != d_request.headers.end()) {
     if (cl->second.empty()) {
       d_error = ParseError::CONTENT_LENGTH_EMPTY;
@@ -265,8 +271,8 @@ bool HttpParser::validateHeaders() {
 }
 
 bool HttpParser::determineBodyFraming() {
-  auto te = d_request.headers.find("Transfer-Encoding");
-  auto cl = d_request.headers.find("Content-Length");
+  auto te = d_request.headers.find("transfer-encoding");
+  auto cl = d_request.headers.find("content-length");
 
   if (te != d_request.headers.end()) {
     if (!iequals(te->second.back(), "chunked")) {

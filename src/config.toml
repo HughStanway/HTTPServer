@@ -1,13 +1,13 @@
 [ports]
 bind_address = "0.0.0.0"
-server_port = 443
+server_port = 3000
 http_redirection_port = 80
 
 [https]
-enable_https = true
+enable_https = false
 cert_file = ".env/cert.pem"
 key_file = ".env/key.pem"
-enable_http_redirection = true
+enable_http_redirection = false
 
 [idle-ip-cleanup]
 interval_seconds = 600
