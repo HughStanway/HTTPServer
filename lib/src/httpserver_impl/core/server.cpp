@@ -214,10 +214,9 @@ bool Server::init_ssl_context() {
 }
 
 void Server::start() {
-  LOG_EVENT(LogLevel::INFO,
-            LogEvent("server_starting")
-                .add("bind_address", Config::get().kBindAddress)
-                .add("port", Config::get().kPort.toString()));
+  LOG_EVENT(LogLevel::INFO, LogEvent("server_starting")
+                                .add("bind_address", Config::get().kBindAddress)
+                                .add("port", Config::get().kPort.toString()));
 
   // Ensure metrics are initialized
   Metrics::instance();
