@@ -2,6 +2,7 @@
 #include <httpserver_impl/core/connection_handler.h>
 #include <httpserver_impl/core/server.h>
 #include <httpserver_impl/monitoring/metrics.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -24,9 +25,9 @@ void sig_handler(int signal) {
   }
 }
 
-int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
+int create_listening_socket(const sockaddr* addr, socklen_t addrlen, int family,
                             bool dualStackIPv6 = true) {
-  int fd = socket(AF_INET6, SOCK_STREAM, 0);
+  int fd = socket(family, SOCK_STREAM, 0);
   if (fd < 0) {
     LOG_ERROR_ERRNO << "Socket creation failed";
     return -1;
@@ -37,7 +38,7 @@ int create_listening_socket(const sockaddr* addr, socklen_t addrlen,
     LOG_ERROR_ERRNO << "setsockopt(SO_REUSEADDR) failed";
   }
 
-  if (dualStackIPv6) {
+  if (family == AF_INET6 && dualStackIPv6) {
     int off = 0;
     setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
   }
@@ -213,9 +214,10 @@ bool Server::init_ssl_context() {
 }
 
 void Server::start() {
-  LOG_EVENT(
-      LogLevel::INFO,
-      LogEvent("server_starting").add("port", Config::get().kPort.toString()));
+  LOG_EVENT(LogLevel::INFO,
+            LogEvent("server_starting")
+                .add("bind_address", Config::get().kBindAddress)
+                .add("port", Config::get().kPort.toString()));
 
   // Ensure metrics are initialized
   Metrics::instance();
@@ -229,13 +231,27 @@ void Server::start() {
   }
 
   // 2. Start main server
-  sockaddr_in6 address{};
-  address.sin6_family = AF_INET6;
-  address.sin6_addr = in6addr_any;
-  address.sin6_port = Config::get().kPort.toNetwork();
+  struct addrinfo hints{}, *res = nullptr;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
 
-  server_fd.reset(create_listening_socket(reinterpret_cast<sockaddr*>(&address),
-                                          sizeof(address)));
+  int status =
+      getaddrinfo(Config::get().kBindAddress.c_str(),
+                  Config::get().kPort.toString().c_str(), &hints, &res);
+
+  if (status != 0) {
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("getaddrinfo_failed")
+                  .add("error", gai_strerror(status))
+                  .add("bind_address", Config::get().kBindAddress)
+                  .add("port", Config::get().kPort.toString()));
+    return;
+  }
+
+  server_fd.reset(
+      create_listening_socket(res->ai_addr, res->ai_addrlen, res->ai_family));
+  freeaddrinfo(res);
 
   if (!server_fd.is_valid()) {
     LOG_EVENT(LogLevel::ERROR,
@@ -280,21 +296,23 @@ void Server::start() {
   d_running = true;
 
   LOG_EVENT(LogLevel::INFO, LogEvent("server_running")
+                                .add("bind_address", Config::get().kBindAddress)
                                 .add("port", Config::get().kPort.toString())
                                 .add("fd", server_fd.get()));
-  accept_loop<sockaddr_in6>(server_fd.get(), d_running, [this](int client_fd) {
-    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
-                              SO_RCVTIMEO);
-    set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
-                              SO_SNDTIMEO);
+  accept_loop<sockaddr_storage>(
+      server_fd.get(), d_running, [this](int client_fd) {
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_RCVTIMEO);
+        set_socket_timeout_option(client_fd, Config::get().kClientTimeoutSec,
+                                  SO_SNDTIMEO);
 
-    LOG_EVENT(LogLevel::INFO,
-              LogEvent("connection_accepted").add("client_fd", client_fd));
-    if (d_thread_pool->enqueue(
-            [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
-      send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
-    }
-  });
+        LOG_EVENT(LogLevel::INFO,
+                  LogEvent("connection_accepted").add("client_fd", client_fd));
+        if (d_thread_pool->enqueue(
+                [this, client_fd]() { dispatch_client(client_fd); }) < 0) {
+          send_bad_request_and_close(StatusCode::ServiceUnavailable, client_fd);
+        }
+      });
   LOG_EVENT(LogLevel::INFO, LogEvent("server_main_loop_exited"));
 }
 
@@ -373,14 +391,28 @@ void Server::handle_client(SSL* ssl, const std::string& client_ip) {
 
 void Server::start_http_redirect(const Port& redirect_port) {
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_starting")
+                                .add("bind_address", Config::get().kBindAddress)
                                 .add("port", redirect_port.toString()));
-  sockaddr_in6 address{};
-  address.sin6_family = AF_INET6;
-  address.sin6_addr = in6addr_any;
-  address.sin6_port = redirect_port.toNetwork();
+  struct addrinfo hints{}, *res = nullptr;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
 
-  redirection_server_fd.reset(create_listening_socket(
-      reinterpret_cast<sockaddr*>(&address), sizeof(address)));
+  int status = getaddrinfo(Config::get().kBindAddress.c_str(),
+                           redirect_port.toString().c_str(), &hints, &res);
+
+  if (status != 0) {
+    LOG_EVENT(LogLevel::ERROR,
+              LogEvent("redirection_getaddrinfo_failed")
+                  .add("error", gai_strerror(status))
+                  .add("bind_address", Config::get().kBindAddress)
+                  .add("port", redirect_port.toString()));
+    return;
+  }
+
+  redirection_server_fd.reset(
+      create_listening_socket(res->ai_addr, res->ai_addrlen, res->ai_family));
+  freeaddrinfo(res);
 
   if (!redirection_server_fd.is_valid()) {
     LOG_EVENT(LogLevel::ERROR, LogEvent("redirection_server_start_failed")
@@ -389,9 +421,10 @@ void Server::start_http_redirect(const Port& redirect_port) {
   }
 
   LOG_EVENT(LogLevel::INFO, LogEvent("redirection_server_running")
+                                .add("bind_address", Config::get().kBindAddress)
                                 .add("port", redirect_port.toString())
                                 .add("fd", redirection_server_fd.get()));
-  accept_loop<sockaddr_in6>(
+  accept_loop<sockaddr_storage>(
       redirection_server_fd.get(), d_running, [this](int client_fd) {
         std::string client_ip = extract_ip(client_fd);
 
