@@ -2,14 +2,14 @@ metadata:
   name: http-server
   versionScheme: semver
 build:
-  image: debian:bookworm
+  image: ubuntu:22.04
   timeoutSeconds: 600
   memory: 2g
   cpus: 2
 steps:
   setup: |
-    echo "Installing build, SSL, and testing dependencies..."
-    apt-get update && apt-get install -y \
+    echo "Installing build, SSL, and testing dependencies on Ubuntu..."
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
       build-essential \
       cmake \
       git \
