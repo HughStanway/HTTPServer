@@ -3,6 +3,7 @@ metadata:
   versionScheme: semver
 build:
   image: ubuntu:22.04
+  platform: linux/amd64
   timeoutSeconds: 600
   memory: 2g
   cpus: 2
