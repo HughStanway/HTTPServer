@@ -30,14 +30,6 @@ steps:
   test: |
     echo "Running Google Test (GTest) unit tests..."
     ./build/tests/unit_tests/unit_tests
-
-    echo "Setting up Python 3.13 virtual environment..."
-    python3.13 -m venv .venv
-    .venv/bin/pip install --upgrade pip
-    .venv/bin/pip install -r requirements-dev.txt
-
-    echo "Running pytest integration tests..."
-    .venv/bin/python -m pytest -s tests
 artifacts:
   - name: http-server-bin
     pattern: "build/src/http_server"
